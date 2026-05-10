@@ -1,9 +1,44 @@
 <resources>
     <string name="app_name">SoftWork</string>
+
+    <!-- Login screen -->
     <string name="login_welcome">Bienvenido de nuevo</string>
+    <string name="login_welcome_back">Bienvenido de vuelta</string>
     <string name="login_button">Iniciar sesión</string>
     <string name="email_label">Correo electrónico</string>
+    <string name="corporate_email_label">Correo institucional</string>
     <string name="password_label">Contraseña</string>
     <string name="forgot_password">¿Olvidaste tu contraseña?</string>
+    <string name="continue_with_google">Continuar con Google</string>
     <string name="register_link">¿No tienes cuenta? Regístrate</string>
+
+    <!-- Register screens -->
+    <string name="create_account">Crear cuenta</string>
+    <string name="corporate_email_only">Solo se aceptan correos corporativos</string>
+    <string name="username_label">Nombre de Usuario</string>
+    <string name="corporate_email_label_register">Correo corporativo</string>
+    <string name="confirm_password_label">Confirmar contraseña</string>
+    <string name="domain_verified">Dominio verificado</string>
+    <string name="role_employee">Empleado</string>
+    <string name="register_google_subtitle">Registre su nombre</string>
+
+    <!-- Success screen -->
+    <string name="user_registered">Usuario registrado</string>
+    <string name="session_started">Sesión iniciada</string>
+    <string name="main_menu">Menú inicial</string>
+
+    <!-- Validation -->
+    <string name="error_invalid_email">Ingresa un correo válido</string>
+    <string name="error_password_too_short">La contraseña debe tener al menos 8 caracteres</string>
+    <string name="error_passwords_do_not_match">Las contraseñas no coinciden</string>
+    <string name="error_username_required">El nombre de usuario es obligatorio</string>
+    <string name="error_generic">Algo salió mal. Inténtalo de nuevo.</string>
+
+    <!-- A11y -->
+    <string name="cd_back">Atrás</string>
+    <string name="cd_toggle_password_visibility">Mostrar u ocultar contraseña</string>
+    <string name="cd_logo">Logo de SoftWork</string>
+    <string name="cd_google_logo">Logo de Google</string>
+    <string name="cd_user_icon">Usuario</string>
+    <string name="cd_success_check">Éxito</string>
 </resources>

@@ -8,11 +8,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import com.elysium.softwork.iam.presentation.navigation.AuthNavHost
 import com.elysium.softwork.shared.presentation.theme.SoftWorkTheme
 
 /**
- * Single Activity hosting the entire Compose UI tree. The app applies edge-to-edge insets and
- * mounts everything under [SoftWorkTheme]. Navigation is composed on top in later phases.
+ * Single Activity hosting the entire Compose UI tree. The app applies edge-to-edge insets,
+ * mounts everything under [SoftWorkTheme], and starts at the IAM nav graph. When the user
+ * completes authentication, [AuthNavHost] reports back via `onAuthComplete` — Phase 3 will
+ * forward to the main app shell at that point.
  */
 class MainActivity : ComponentActivity() {
 
@@ -25,7 +28,12 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
                 ) {
-                    // Phase 1 placeholder — feature navigation graph plugs in here.
+                    AuthNavHost(
+                        onAuthComplete = {
+                            // Phase 3: navigate to the main app graph (forum/feedback). For
+                            // Phase 2 we leave the success screen as the terminal surface.
+                        },
+                    )
                 }
             }
         }

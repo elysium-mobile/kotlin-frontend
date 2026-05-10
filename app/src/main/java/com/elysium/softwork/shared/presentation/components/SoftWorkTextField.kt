@@ -43,6 +43,8 @@ import com.elysium.softwork.shared.presentation.theme.PrimarySky
  * @param label optional floating label.
  * @param placeholder optional placeholder shown when the field is empty.
  * @param leadingIcon optional composable rendered before the text (use [androidx.compose.ui.res.painterResource]).
+ * @param trailingIcon optional composable rendered after the text — typically a clickable icon
+ *   like a password visibility toggle.
  * @param isError marks the field as invalid; switches the border to [Danger].
  * @param keyboardOptions IME configuration (e.g. email keyboard, capitalization).
  * @param visualTransformation transform applied to the displayed text (e.g. password mask).
@@ -55,6 +57,7 @@ fun SoftWorkTextField(
     label: String? = null,
     placeholder: String? = null,
     leadingIcon: (@Composable () -> Unit)? = null,
+    trailingIcon: (@Composable () -> Unit)? = null,
     isError: Boolean = false,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
@@ -76,6 +79,7 @@ fun SoftWorkTextField(
         label = label?.let { { Text(text = it) } },
         placeholder = placeholder?.let { { Text(text = it) } },
         leadingIcon = leadingIcon,
+        trailingIcon = trailingIcon,
         isError = isError,
         singleLine = true,
         keyboardOptions = keyboardOptions,

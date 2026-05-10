@@ -16,7 +16,8 @@ repository is **exclusively** the Employee experience; the HR/Admin client lives
 | Persistence    | Room 2.8.4 (KSP)                                  |
 | Images         | Coil 3                                            |
 | Fonts          | Compose Google Fonts (Exo)                        |
-| i18n           | AppCompat 1.7.0 (`AppCompatDelegate.setApplicationLocales`) |
+| State (UI)     | androidx.lifecycle 2.10.0 — `viewmodel-compose` + `runtime-compose` |
+| i18n           | AppCompat 1.7.x (`AppCompatDelegate.setApplicationLocales`) |
 
 **Not in stack:** Hilt, Material Extended Icons, third-party design systems, DataStore.
 Do not introduce them without an explicit decision recorded in this file.
@@ -82,6 +83,43 @@ class PostStoreImpl(
 ) : PostStore { /* ... */ }
 ```
 
+### Bean / Pragmatic Shortcut (Phase 2 onwards)
+
+The IAM context introduced a deliberate shortcut: **a single Kotlin `data class` annotated
+with `@SerializedName` flows through the Retrofit WebService for both request bodies and
+response payloads** — no DTOs, no assemblers, no mappers. Different endpoints fill different
+subsets of the model (login fills `email`/`password`, the response fills `id`/`token`/…), so
+all fields are nullable. Trade-off accepted: simpler code, faster iteration; cost: a single
+class describes multiple wire shapes.
+
+```kotlin
+// iam/domain/model/User.kt
+data class User(
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("email") val email: String? = null,
+    @SerializedName("password") val password: String? = null,
+    @SerializedName("token") val token: String? = null,
+    /* ... */
+)
+
+// iam/data/network/AuthWebService.kt
+interface AuthWebService {
+    @POST("auth/login") suspend fun login(@Body credentials: User): Response<User>
+}
+```
+
+Adopt this pattern in new contexts only when the data shape is genuinely simple and the
+team accepts the round-trip risk. Re-introduce DTOs the moment the wire contract diverges
+meaningfully from the domain model.
+
+### Dependency Wiring (no Hilt)
+
+A manual [`ServiceLocator`](app/src/main/java/com/elysium/softwork/shared/core/ServiceLocator.kt)
+owned by `SoftWorkApplication` exposes process-wide singletons (SharedPreferences, Retrofit,
+each context's WebService, each context's Store). ViewModels receive their `Store` via a
+`ViewModelProvider.Factory` exposed on the ViewModel companion (see `AuthViewModel.Factory`).
+Composables resolve the ViewModel with `viewModel(factory = AuthViewModel.Factory)`.
+
 ---
 
 ## UI Conventions
@@ -144,8 +182,40 @@ those approaches are obsolete and incompatible with App Bundles + per-app langua
 - Native i18n: `AppLocale`, `LocaleHelper` (AppCompat back-port), English + Spanish strings.
 - `SoftWorkApplication` wired in the manifest. Manifest theme renamed to `Theme.SoftWork`.
 
-### 🔜 Next — Phase 2 (`iam`)
+### ✅ Phase 2 — IAM bounded context (complete)
 
-- Login screen wired to a `SessionStore` (Retrofit + Room session cache).
-- Auth navigation graph (`navigation-compose`) and a session-gated entry point.
-- Forgot-password and registration entry points (UI shells; backend wiring later).
+- **Domain**: `User` and `AuthToken` data classes annotated with `@SerializedName`. Shared
+  between request/response per the bean/pragmatic-shortcut pattern.
+- **Data**: `AuthWebService` (Retrofit), `AuthStore` (interface) + `AuthStoreImpl` orchestrating
+  the WebService and persisting the JWT in `SharedPrefsManager`. Process-wide Retrofit
+  instance lives in `shared/data/network/ApiClient.kt`.
+- **Application**: `AuthViewModel` exposing `state: StateFlow<AuthState>` and
+  `form: StateFlow<FormState>`. Validation in `AuthValidation` (pure, JVM-testable).
+- **Presentation**: `LoginScreen`, `RegisterScreen`, `RegisterGoogleScreen`,
+  `AuthSuccessScreen` plus shared IAM components (`PasswordVisibilityToggle`,
+  `RoleSelectorCard`, `GoogleOutlineButton`, `BackTopBar`, `VerifiedDomainChip`).
+- **Navigation**: `AuthNavHost` in `iam/presentation/navigation/AuthNavigation.kt`. Routes:
+  `auth/login`, `auth/register`, `auth/register-google`, `auth/success/{kind}`.
+- **Wiring**: `SoftWorkApplication.serviceLocator` exposes `authStore`. `AuthViewModel.Factory`
+  pulls it from the application via `CreationExtras`. `MainActivity` mounts `AuthNavHost`.
+- **Icons added** as XML vector drawables: `ic_visibility`, `ic_visibility_off`, `ic_check`,
+  `ic_check_circle`, `ic_arrow_back`, `ic_user`, `ic_logo`, `ic_google`.
+
+#### New dependencies (with rationale)
+
+- `androidx.appcompat:appcompat:1.7.x` — required for `AppCompatDelegate.setApplicationLocales`
+  (Phase 1).
+- `androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0` — Compose-aware `viewModel(...)`
+  resolver, needed to instantiate `AuthViewModel` with a `CreationExtras`-aware factory.
+- `androidx.lifecycle:lifecycle-runtime-compose:2.10.0` — `collectAsStateWithLifecycle`, the
+  lifecycle-safe replacement for `collectAsState` on Compose surfaces.
+
+### 🔜 Next — Phase 3
+
+- Root nav graph that hands off from `AuthNavHost` to the main app shell on
+  `onAuthComplete`. Forum (`forum/`) entry point.
+- Auth header interceptor on `ApiClient` once the backend session contract is finalized.
+- Forgot-password flow.
+
+# Final Consideration
+- When implementing important changes or adding new dependencies, please update this document with the rationale and the impact on the architecture. This will help maintain a clear understanding of the design decisions and ensure consistency across the codebase.
