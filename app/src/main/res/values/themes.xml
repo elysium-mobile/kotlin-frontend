@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.Frontend" parent="android:Theme.Material.Light.NoActionBar" />
+    <!--
+        Manifest-level theme used during the cold-start window before Compose takes over.
+        DayNight allows the system to honor light/dark; once SoftWorkTheme mounts, the
+        Compose ColorScheme drives all visual styling.
+    -->
+    <style name="Theme.SoftWork" parent="Theme.AppCompat.DayNight.NoActionBar" />
 </resources>

@@ -61,6 +61,9 @@ dependencies {
     // Fonts
     implementation(libs.androidx.compose.ui.text.google.fonts)
 
+    // AppCompat (required for AppCompatDelegate.setApplicationLocales back-port)
+    implementation(libs.androidx.appcompat)
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
