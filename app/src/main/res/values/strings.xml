@@ -34,6 +34,66 @@
     <string name="error_username_required">Username is required</string>
     <string name="error_generic">Something went wrong. Please try again.</string>
 
+    <!-- Bottom navigation -->
+    <string name="nav_home">Menu</string>
+    <string name="nav_profile">Profile</string>
+    <string name="nav_forum">Forum</string>
+    <string name="nav_notifications">Notifications</string>
+
+    <!-- Home screen -->
+    <string name="home_greeting">Good morning</string>
+    <string name="home_user_name_placeholder">Carlos Ramos</string>
+    <string name="home_mood_question">How are you feeling today?</string>
+    <string name="home_anonymous_badge">ANONYMOUS</string>
+    <string name="home_report_incident">Report incident</string>
+    <string name="home_report_incident_subtitle">100% anonymous and encrypted</string>
+    <string name="home_internal_forums">Internal forums</string>
+    <string name="home_internal_forums_subtitle">12 active conversations</string>
+    <string name="home_ai_assistant">AI Assistant</string>
+    <string name="home_ai_assistant_subtitle">Available 24/7</string>
+
+    <!-- Forum / notifications placeholders -->
+    <string name="placeholder_forum_title">Forum</string>
+    <string name="placeholder_forum_subtitle">Coming soon</string>
+    <string name="placeholder_notifications_title">Notifications</string>
+    <string name="placeholder_notifications_subtitle">Coming soon</string>
+
+    <!-- Profile screen -->
+    <string name="profile_title">My profile</string>
+    <string name="profile_edit_action">Edit</string>
+    <string name="profile_sample_name">Carlos Ramos</string>
+    <string name="profile_sample_role">Senior Developer · TechCorp S.A.</string>
+    <string name="profile_section_work_info">Work information</string>
+    <string name="profile_company_label">Company</string>
+    <string name="profile_company_value">TechCorp S.A.</string>
+    <string name="profile_area_label">Area</string>
+    <string name="profile_area_value">Technology</string>
+    <string name="profile_position_label">Position</string>
+    <string name="profile_position_value">Senior Developer</string>
+    <string name="profile_email_label_row">Email</string>
+    <string name="profile_email_value">carlos.ramos@techcorp.com</string>
+    <string name="profile_section_privacy">Privacy</string>
+    <string name="profile_anonymous_forum">Anonymous mode in forum</string>
+    <string name="profile_section_language">App language</string>
+    <string name="profile_language_es">Español</string>
+    <string name="profile_language_en">English</string>
+    <string name="profile_section_payment">Payment</string>
+    <string name="profile_payment_methods">Payment methods</string>
+    <string name="profile_edit_button">Edit profile</string>
+    <string name="profile_logout">Log out</string>
+
+    <!-- Protected identity screen -->
+    <string name="protected_identity_title">Protected identity</string>
+    <string name="protected_identity_anonymous_user">Anonymous user</string>
+    <string name="protected_identity_description">Your identity is fully protected. Nobody can link your posts back to you.</string>
+    <string name="protected_identity_global_label">Global anonymous mode</string>
+    <string name="protected_identity_global_description">Enable anonymity across the whole app</string>
+    <string name="protected_identity_hide_forum">Hide identity in the forum</string>
+    <string name="protected_identity_hide_surveys">Hide identity in surveys</string>
+    <string name="protected_identity_hide_reports">Hide identity in reports</string>
+    <string name="protected_identity_hr_notice">HR can never identify you in anonymous posts</string>
+    <string name="protected_identity_save">Save preferences</string>
+
     <!-- A11y -->
     <string name="cd_back">Back</string>
     <string name="cd_toggle_password_visibility">Toggle password visibility</string>
@@ -41,4 +101,15 @@
     <string name="cd_google_logo">Google logo</string>
     <string name="cd_user_icon">User</string>
     <string name="cd_success_check">Success</string>
+    <string name="cd_avatar">User avatar</string>
+    <string name="cd_chevron">Open</string>
+    <string name="cd_shield">Shield</string>
+    <string name="cd_people">People</string>
+    <string name="cd_sparkle">AI sparkle</string>
+    <string name="cd_edit">Edit</string>
+    <string name="cd_home">Home</string>
+    <string name="cd_forum">Forum</string>
+    <string name="cd_notifications">Notifications</string>
+    <string name="cd_anonymous_avatar">Anonymous user avatar</string>
+    <string name="cd_lock">Lock</string>
 </resources>

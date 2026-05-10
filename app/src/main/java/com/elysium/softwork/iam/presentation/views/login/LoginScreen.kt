@@ -1,4 +1,4 @@
-package com.elysium.softwork.iam.presentation.login
+package com.elysium.softwork.iam.presentation.views.login
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -31,7 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elysium.softwork.R
 import com.elysium.softwork.iam.application.AuthState
-import com.elysium.softwork.iam.application.AuthViewModel
+import com.elysium.softwork.iam.application.viewmodel.AuthViewModel
 import com.elysium.softwork.iam.presentation.components.GoogleOutlineButton
 import com.elysium.softwork.iam.presentation.components.PasswordVisibilityToggle
 import com.elysium.softwork.shared.presentation.components.ButtonVariant

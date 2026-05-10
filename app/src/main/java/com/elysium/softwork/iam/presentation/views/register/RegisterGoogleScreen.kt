@@ -1,4 +1,4 @@
-package com.elysium.softwork.iam.presentation.register
+package com.elysium.softwork.iam.presentation.views.register
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -22,7 +22,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elysium.softwork.R
 import com.elysium.softwork.iam.application.AuthState
-import com.elysium.softwork.iam.application.AuthViewModel
+import com.elysium.softwork.iam.application.viewmodel.AuthViewModel
 import com.elysium.softwork.iam.presentation.components.BackTopBar
 import com.elysium.softwork.iam.presentation.components.RoleSelectorCard
 import com.elysium.softwork.shared.presentation.components.ButtonVariant

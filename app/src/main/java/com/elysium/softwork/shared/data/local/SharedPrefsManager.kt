@@ -2,6 +2,7 @@ package com.elysium.softwork.shared.data.local
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 
 /**
  * Thin wrapper around the legacy [SharedPreferences] API for cross-cutting key/value storage.
@@ -24,14 +25,22 @@ class SharedPrefsManager(context: Context) {
 
     /** Persists [value] under [key]. Pass `null` to clear the entry. */
     fun putString(key: String, value: String?) {
-        prefs.edit().apply {
+        prefs.edit {
             if (value == null) remove(key) else putString(key, value)
-        }.apply()
+        }
     }
 
     /** Removes the entry for [key]. Idempotent. */
     fun remove(key: String) {
-        prefs.edit().remove(key).apply()
+        prefs.edit { remove(key) }
+    }
+
+    /** Returns the boolean stored under [key] or [default] when not set. */
+    fun getBoolean(key: String, default: Boolean = false): Boolean = prefs.getBoolean(key, default)
+
+    /** Persists [value] under [key]. */
+    fun putBoolean(key: String, value: Boolean) {
+        prefs.edit { putBoolean(key, value) }
     }
 
     companion object {
@@ -42,5 +51,17 @@ class SharedPrefsManager(context: Context) {
 
         /** Storage key for the cached user id of the active session. */
         const val KEY_USER_ID: String = "user_id"
+
+        /** Storage key for the global anonymity master switch. */
+        const val KEY_GLOBAL_ANONYMITY: String = "global_anonymity"
+
+        /** Storage key for the per-context anonymity flag in the workers forum. */
+        const val KEY_FORUM_ANONYMITY: String = "forum_anonymity"
+
+        /** Storage key for the per-context anonymity flag in surveys. */
+        const val KEY_SURVEYS_ANONYMITY: String = "surveys_anonymity"
+
+        /** Storage key for the per-context anonymity flag in incident reports. */
+        const val KEY_REPORTS_ANONYMITY: String = "reports_anonymity"
     }
 }

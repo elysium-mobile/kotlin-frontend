@@ -34,6 +34,66 @@
     <string name="error_username_required">El nombre de usuario es obligatorio</string>
     <string name="error_generic">Algo salió mal. Inténtalo de nuevo.</string>
 
+    <!-- Bottom navigation -->
+    <string name="nav_home">Menú</string>
+    <string name="nav_profile">Perfil</string>
+    <string name="nav_forum">Foro</string>
+    <string name="nav_notifications">Notificaciones</string>
+
+    <!-- Home screen -->
+    <string name="home_greeting">Buenos días</string>
+    <string name="home_user_name_placeholder">Carlos Ramos</string>
+    <string name="home_mood_question">¿Cómo te sientes hoy?</string>
+    <string name="home_anonymous_badge">ANÓNIMO</string>
+    <string name="home_report_incident">Reportar incidente</string>
+    <string name="home_report_incident_subtitle">100% anónimo y encriptado</string>
+    <string name="home_internal_forums">Foros internos</string>
+    <string name="home_internal_forums_subtitle">12 conversaciones activas</string>
+    <string name="home_ai_assistant">Asistente de IA</string>
+    <string name="home_ai_assistant_subtitle">Disponible 24/7</string>
+
+    <!-- Forum / notifications placeholders -->
+    <string name="placeholder_forum_title">Foro</string>
+    <string name="placeholder_forum_subtitle">Próximamente</string>
+    <string name="placeholder_notifications_title">Notificaciones</string>
+    <string name="placeholder_notifications_subtitle">Próximamente</string>
+
+    <!-- Profile screen -->
+    <string name="profile_title">Mi perfil</string>
+    <string name="profile_edit_action">Editar</string>
+    <string name="profile_sample_name">Carlos Ramos</string>
+    <string name="profile_sample_role">Desarrollador Senior · TechCorp S.A.</string>
+    <string name="profile_section_work_info">Información laboral</string>
+    <string name="profile_company_label">Empresa</string>
+    <string name="profile_company_value">TechCorp S.A.</string>
+    <string name="profile_area_label">Área</string>
+    <string name="profile_area_value">Tecnología</string>
+    <string name="profile_position_label">Cargo</string>
+    <string name="profile_position_value">Desarrollador Senior</string>
+    <string name="profile_email_label_row">Correo</string>
+    <string name="profile_email_value">carlos.ramos@techcorp.com</string>
+    <string name="profile_section_privacy">Privacidad</string>
+    <string name="profile_anonymous_forum">Modo anónimo en foro</string>
+    <string name="profile_section_language">Idioma de la aplicación</string>
+    <string name="profile_language_es">Español</string>
+    <string name="profile_language_en">English</string>
+    <string name="profile_section_payment">Pago</string>
+    <string name="profile_payment_methods">Métodos de pago</string>
+    <string name="profile_edit_button">Editar perfil</string>
+    <string name="profile_logout">Cerrar sesión</string>
+
+    <!-- Protected identity screen -->
+    <string name="protected_identity_title">Identidad protegida</string>
+    <string name="protected_identity_anonymous_user">Usuario Anónimo</string>
+    <string name="protected_identity_description">Tu identidad está completamente protegida. Nadie puede vincular tus publicaciones contigo.</string>
+    <string name="protected_identity_global_label">Modo anónimo global</string>
+    <string name="protected_identity_global_description">Activa el anonimato en toda la aplicación</string>
+    <string name="protected_identity_hide_forum">Ocultar identidad en el foro</string>
+    <string name="protected_identity_hide_surveys">Ocultar identidad en encuestas</string>
+    <string name="protected_identity_hide_reports">Ocultar identidad en denuncias</string>
+    <string name="protected_identity_hr_notice">RRHH nunca podrá identificarte en publicaciones anónimas</string>
+    <string name="protected_identity_save">Guardar preferencias</string>
+
     <!-- A11y -->
     <string name="cd_back">Atrás</string>
     <string name="cd_toggle_password_visibility">Mostrar u ocultar contraseña</string>
@@ -41,4 +101,15 @@
     <string name="cd_google_logo">Logo de Google</string>
     <string name="cd_user_icon">Usuario</string>
     <string name="cd_success_check">Éxito</string>
+    <string name="cd_avatar">Avatar del usuario</string>
+    <string name="cd_chevron">Abrir</string>
+    <string name="cd_shield">Escudo</string>
+    <string name="cd_people">Personas</string>
+    <string name="cd_sparkle">Asistente IA</string>
+    <string name="cd_edit">Editar</string>
+    <string name="cd_home">Inicio</string>
+    <string name="cd_forum">Foro</string>
+    <string name="cd_notifications">Notificaciones</string>
+    <string name="cd_anonymous_avatar">Avatar de usuario anónimo</string>
+    <string name="cd_lock">Candado</string>
 </resources>

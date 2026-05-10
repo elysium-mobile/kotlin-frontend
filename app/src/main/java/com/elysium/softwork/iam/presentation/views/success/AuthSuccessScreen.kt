@@ -1,4 +1,4 @@
-package com.elysium.softwork.iam.presentation.success
+package com.elysium.softwork.iam.presentation.views.success
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement

@@ -9,10 +9,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.elysium.softwork.R
-import com.elysium.softwork.iam.presentation.login.LoginScreen
-import com.elysium.softwork.iam.presentation.register.RegisterGoogleScreen
-import com.elysium.softwork.iam.presentation.register.RegisterScreen
-import com.elysium.softwork.iam.presentation.success.AuthSuccessScreen
+import com.elysium.softwork.iam.presentation.views.login.LoginScreen
+import com.elysium.softwork.iam.presentation.views.register.RegisterGoogleScreen
+import com.elysium.softwork.iam.presentation.views.register.RegisterScreen
+import com.elysium.softwork.iam.presentation.views.success.AuthSuccessScreen
 
 /**
  * Route definitions for the IAM bounded context. Centralized as constants so navigation

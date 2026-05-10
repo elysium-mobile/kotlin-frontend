@@ -210,12 +210,70 @@ those approaches are obsolete and incompatible with App Bundles + per-app langua
 - `androidx.lifecycle:lifecycle-runtime-compose:2.10.0` — `collectAsStateWithLifecycle`, the
   lifecycle-safe replacement for `collectAsState` on Compose surfaces.
 
-### 🔜 Next — Phase 3
+### ✅ Phase 3 — Authenticated shell (complete)
 
-- Root nav graph that hands off from `AuthNavHost` to the main app shell on
-  `onAuthComplete`. Forum (`forum/`) entry point.
-- Auth header interceptor on `ApiClient` once the backend session contract is finalized.
+- **Bottom navigation**: `MainNavHost` (Scaffold + Material 3 `NavigationBar`, 72.dp height)
+  in `shared/presentation/navigation/MainNavigation.kt`. Tabs: Menú (Home), Perfil
+  (Profile), Foro (placeholder), Notificaciones (placeholder). Active color `PrimarySky`,
+  inactive `AccentMint`, container white, no indicator pill.
+- **HomeScreen** (`shared/presentation/home/`) — greeting + initials avatar, 5-emoji mood
+  check-in card with anonymous badge, three action cards (Report incident, Internal forums,
+  AI Assistant) using `SoftWorkCard` + `painterResource` icons.
+- **ProfileScreen** (`shared/presentation/profile/`) — header with edit affordance, hero
+  with `InitialsAvatar`, four section cards (Información laboral / Privacidad / Idioma /
+  Pago), outline `Editar perfil` button, `Cerrar sesión` text button (Danger color) wired
+  to a logout callback.
+- **Live language toggle** in the Idioma card calls
+  `LocaleHelper.apply(AppLocale.ES | EN)` → `AppCompatDelegate.setApplicationLocales(...)`.
+  AppCompat persists via the manifest service and recreates the activity transparently.
+- **Auth ↔ Main routing**: `MainActivity` now extends `AppCompatActivity` (so AppCompat's
+  locale back-port can recreate the Activity on API 29-32) and swaps between `AuthNavHost`
+  and `MainNavHost` based on `rememberSaveable<Boolean>` flipped by `onAuthComplete` /
+  `onLogout`. Logout calls `AuthStore.clearSession()` and pops the user back to the IAM graph.
+- **Shared component**: `InitialsAvatar` in `shared/presentation/components/` derives initials
+  from a name and renders a circular brand-colored avatar.
+- **Icons added**: `ic_home`, `ic_person`, `ic_forum`, `ic_notifications`, `ic_shield`,
+  `ic_people`, `ic_sparkle`, `ic_chevron_right`, `ic_edit`.
+
+#### Phase 3 extension — Identity Protection flow
+
+- **Persistence**: `SharedPrefsManager` gained `getBoolean` / `putBoolean` plus four new
+  keys: `KEY_GLOBAL_ANONYMITY`, `KEY_FORUM_ANONYMITY`, `KEY_SURVEYS_ANONYMITY`,
+  `KEY_REPORTS_ANONYMITY`.
+- **Domain**: `AnonymityPreferences` data class in `shared/domain/identity/` bundles the
+  four flags as a single immutable snapshot.
+- **Application**: `AnonymityViewModel` in `shared/application/` loads from prefs on
+  construction, exposes a `StateFlow<AnonymityPreferences>` for the in-memory edit buffer,
+  and flushes to prefs only on explicit `save()`. Wired through a `Factory` reading
+  `SharedPrefsManager` from the service locator (same pattern as `AuthViewModel`).
+- **Presentation**: `ProtectedIdentityScreen` in `shared/presentation/identity/` —
+  back-arrow header, anonymous-user hero, global-toggle card, three-row granular toggle
+  card with 0.5.dp dividers, AccentMint-tinted HR info banner with `ic_lock`, and a
+  primary `Guardar preferencias` button.
+- **Navigation**: new `MainRoutes.PROTECTED_IDENTITY` route. The Profile "Modo anónimo en
+  foro" row now navigates to it; tapping Save pops back to Profile.
+- **Icons added**: `ic_lock`.
+
+**UX note** — toggles edit an in-memory buffer; persistence is explicit on Save. Backing
+out of the screen discards unsaved changes. To switch to write-through behavior, route the
+toggle handlers to call `viewModel.save()` after each `setX(...)`.
+
+#### Architectural note — `AppCompatActivity` for locale back-port
+
+`MainActivity` was migrated from `ComponentActivity` to `AppCompatActivity` so that
+`AppCompatDelegate.setApplicationLocales` triggers automatic activity recreation on API
+29-32. This is the official path documented at
+[developer.android.com/guide/topics/resources/app-languages](https://developer.android.com/guide/topics/resources/app-languages).
+On API 33+ the platform `LocaleManager` handles recreation regardless of the activity base
+class. AppCompatActivity remains fully Compose-compatible — `enableEdgeToEdge()` and
+`setContent` work as before.
+
+### 🔜 Next — Phase 4
+
+- Forum (`forum/`) bounded context — replace the placeholder, wire to a `PostStore`.
+- Real user/profile data sourced from a `ProfileStore` (replace placeholder strings).
 - Forgot-password flow.
+- Auth header interceptor on `ApiClient` once the backend session contract is finalized.
 
 # Final Consideration
 - When implementing important changes or adding new dependencies, please update this document with the rationale and the impact on the architecture. This will help maintain a clear understanding of the design decisions and ensure consistency across the codebase.

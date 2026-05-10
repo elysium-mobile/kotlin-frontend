@@ -1,10 +1,12 @@
-package com.elysium.softwork.iam.application
+package com.elysium.softwork.iam.application.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.elysium.softwork.SoftWorkApplication
+import com.elysium.softwork.iam.application.AuthState
+import com.elysium.softwork.iam.application.AuthValidation
 import com.elysium.softwork.iam.data.store.AuthStore
 import com.elysium.softwork.iam.domain.model.User
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,11 +18,11 @@ import kotlinx.coroutines.launch
  * Hosts UI state for the IAM flows.
  *
  * The ViewModel keeps two streams:
- * - [state] — request lifecycle ([AuthState.Idle], [AuthState.Loading], [AuthState.Success],
- *   [AuthState.Error]). Drives navigation and progress indicators.
+ * - [state] — request lifecycle ([com.elysium.softwork.iam.application.AuthState.Idle], [com.elysium.softwork.iam.application.AuthState.Loading], [com.elysium.softwork.iam.application.AuthState.Success],
+ *   [com.elysium.softwork.iam.application.AuthState.Error]). Drives navigation and progress indicators.
  * - [form] — current form values + per-field validation. Drives the input rendering.
  *
- * Validation lives in [AuthValidation] and is recomputed on every keystroke; the screen
+ * Validation lives in [com.elysium.softwork.iam.application.AuthValidation] and is recomputed on every keystroke; the screen
  * consumes the derived booleans to decide when to enable the primary button or show error
  * helper text.
  */
@@ -137,7 +139,7 @@ class AuthViewModel(private val authStore: AuthStore) : ViewModel() {
         private const val GENERIC_ERROR: String = "Unexpected error"
 
         /**
-         * Factory that pulls the [AuthStore] from the [SoftWorkApplication] service locator.
+         * Factory that pulls the [AuthStore] from the [com.elysium.softwork.SoftWorkApplication] service locator.
          *
          * Use it inside Composables:
          * ```
