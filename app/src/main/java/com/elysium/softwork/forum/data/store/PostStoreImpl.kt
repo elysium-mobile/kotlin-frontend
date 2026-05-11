@@ -10,9 +10,10 @@ import java.util.UUID
  * Offline-first [PostStore].
  *
  * - [observe] returns the Room [Flow] directly so the UI always renders the cached snapshot.
- * - [refresh] tries the network and upserts on success. **Fallback**: the first time the
- *   table is empty after a failed refresh, a small set of bundled sample posts is seeded so
- *   the demo flow keeps working without a backend. Remove the seed when the API is live.
+ * - [refresh] is **mocked** for the UI-testing phase: it skips the Retrofit call entirely
+ *   and seeds the Room cache with [SeedPosts] when empty so the Forum screen always has
+ *   data to render. Re-enable the network branch (commented inline) when the `/posts`
+ *   endpoint is live.
  * - [publish] tries the network; on success the server-issued [Post] is upserted. On failure
  *   the post is still inserted locally with a generated UUID so the user sees their content
  *   immediately — the next [refresh] will reconcile with the server.
@@ -25,20 +26,13 @@ class PostStoreImpl(
     override fun observe(): Flow<List<Post>> = dao.getAllPosts()
 
     override suspend fun refresh(): Result<Unit> = runCatching {
-        try {
-            val response = webService.list()
-            if (response.isSuccessful) {
-                response.body()?.let { dao.upsertAll(it) }
-                return@runCatching
-            }
-        } catch (_: Throwable) {
-            // Fall through to the seed branch below.
-        }
-        // Network unreachable or non-2xx: seed once so the UI has something to render.
+        // Mocked: bypass Retrofit entirely and ensure the cache holds the seed set. When the
+        // backend is reachable, restore the original implementation:
+        //     val response = webService.list()
+        //     if (response.isSuccessful) response.body()?.let { dao.upsertAll(it) }
         if (dao.count() == 0) {
             dao.upsertAll(SeedPosts)
         }
-        error("Network refresh failed; cache unchanged or seeded.")
     }
 
     override suspend fun getById(id: String): Post? = dao.getById(id)
@@ -105,6 +99,16 @@ class PostStoreImpl(
                 category = "events",
                 timestamp = System.currentTimeMillis() - 1_000L * 60 * 60 * 24,
                 repliesCount = 22,
+            ),
+            Post(
+                id = "seed-4",
+                authorName = "Cesar",
+                isAnonymous = false,
+                title = "Bienvenidos al foro interno",
+                content = "Comparte aquí tus ideas y conflictos con el equipo.",
+                category = "suggestions",
+                timestamp = System.currentTimeMillis() - 1_000L * 60 * 5,
+                repliesCount = 3,
             ),
         )
     }

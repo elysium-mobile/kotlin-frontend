@@ -141,12 +141,15 @@ fun LoginScreen(
 
         Spacer(Modifier.height(20.dp))
 
+        // Validation relaxed for the mock-auth testing phase — both fields just need a
+        // value. Real format/length checks return once the backend is integrated; the
+        // helpers in AuthValidation are preserved for that switch-back.
         SoftWorkButton(
             text = stringResource(R.string.login_button),
             onClick = viewModel::submitLogin,
             enabled = state !is AuthState.Loading &&
-                form.email.isNotEmpty() && form.isEmailFormatValid &&
-                form.isPasswordValid,
+                form.email.isNotBlank() &&
+                form.password.isNotBlank(),
             variant = ButtonVariant.EMPLOYEE,
         )
 

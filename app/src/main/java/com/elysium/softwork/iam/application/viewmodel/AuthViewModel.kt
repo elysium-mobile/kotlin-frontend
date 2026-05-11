@@ -88,11 +88,15 @@ class AuthViewModel(private val authStore: AuthStore) : ViewModel() {
     // endregion
 
     // region Actions
-    /** Submits the login form. No-ops when validation fails. */
+    /**
+     * Submits the login form. Strict validation (corporate-email format, 8+ char password)
+     * is intentionally relaxed for the mock-auth testing phase — the only requirement is
+     * that both fields contain something. Re-tighten this when the real backend is wired
+     * up. See `AuthValidation.isEmailValid` / `isPasswordValid` for the production rules.
+     */
     fun submitLogin() {
         val current: FormState = _form.value
-        if (!current.isEmailFormatValid || current.email.isEmpty()) return
-        if (!current.isPasswordValid) return
+        if (current.email.isBlank() || current.password.isBlank()) return
         runRequest { authStore.login(current.email.trim(), current.password) }
     }
 

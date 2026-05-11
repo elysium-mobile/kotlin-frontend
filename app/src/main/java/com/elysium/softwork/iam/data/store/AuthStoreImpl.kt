@@ -3,6 +3,7 @@ package com.elysium.softwork.iam.data.store
 import com.elysium.softwork.iam.data.network.AuthWebService
 import com.elysium.softwork.iam.domain.model.User
 import com.elysium.softwork.shared.data.local.SharedPrefsManager
+import kotlinx.coroutines.delay
 import retrofit2.Response
 
 /**
@@ -14,14 +15,29 @@ import retrofit2.Response
  * 2. Persists the returned token (when present) to local storage.
  *
  * This keeps the per-endpoint methods declarative.
+ *
+ * **Testing phase note:** [login] is currently mocked — it bypasses the WebService entirely,
+ * simulates a 1 s round-trip, and returns a fixed [User] + [MOCK_TOKEN]. Switch back to
+ * `callAndPersist { webService.login(...) }` when the backend is reachable.
  */
 class AuthStoreImpl(
     private val webService: AuthWebService,
     private val prefs: SharedPrefsManager,
 ) : AuthStore {
 
-    override suspend fun login(email: String, password: String): Result<User> =
-        callAndPersist { webService.login(User(email = email, password = password)) }
+    override suspend fun login(email: String, password: String): Result<User> = runCatching {
+        delay(MOCK_DELAY_MS)
+        val user = User(
+            id = MOCK_USER_ID,
+            username = MOCK_USERNAME,
+            email = email.ifBlank { MOCK_EMAIL },
+            role = MOCK_ROLE,
+            token = MOCK_TOKEN,
+        )
+        prefs.putString(SharedPrefsManager.KEY_AUTH_TOKEN, MOCK_TOKEN)
+        prefs.putString(SharedPrefsManager.KEY_USER_ID, MOCK_USER_ID)
+        user
+    }
 
     override suspend fun register(
         username: String,
@@ -60,4 +76,15 @@ class AuthStoreImpl(
             body.id?.let { prefs.putString(SharedPrefsManager.KEY_USER_ID, it) }
             body
         }
+
+    private companion object {
+        // Mock-auth constants — delete this block (and restore the original `callAndPersist`
+        // call in [login]) when the real backend is wired up.
+        const val MOCK_DELAY_MS: Long = 1_000L
+        const val MOCK_TOKEN: String = "MOCK_TOKEN_123"
+        const val MOCK_USER_ID: String = "1"
+        const val MOCK_USERNAME: String = "Cesar"
+        const val MOCK_EMAIL: String = "cesar@gmail.com"
+        const val MOCK_ROLE: String = "EMPLOYEE"
+    }
 }
