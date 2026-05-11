@@ -176,11 +176,42 @@ those approaches are obsolete and incompatible with App Bundles + per-app langua
 
 - DDD package skeleton for `shared`, `iam`, `forum`, `feedback` (each with
   `domain/`, `data/store/`, `application/`, `presentation/`).
-- Compose design system: `Color.kt`, `Type.kt` (Exo via Google Fonts), `Shape.kt`, `Theme.kt`.
+- Compose design system: `Color.kt`, `Type.kt` (bundled Exo variable font + downloadable
+  upgrade — see "Brand typography" below), `Shape.kt`, `Theme.kt`.
 - Brand components: `SoftWorkButton` (Employee + HR variants), `SoftWorkTextField`,
   `SoftWorkCard`.
 - Native i18n: `AppLocale`, `LocaleHelper` (AppCompat back-port), English + Spanish strings.
 - `SoftWorkApplication` wired in the manifest. Manifest theme renamed to `Theme.SoftWork`.
+
+#### Brand typography — bundled Exo + downloadable upgrade
+
+Earlier scaffolding declared Exo as a pure downloadable Google Font. That caused three
+visible failure modes: (1) async download race produced a first-frame FOUT, (2) emulators
+without Google Play Services Fonts silently fell back to Roboto, (3) Compose `@Preview`
+never downloads at all. [Type.kt](app/src/main/java/com/elysium/softwork/shared/presentation/theme/Type.kt)
+now declares a **layered `ExoFontFamily`**:
+
+1. **Bundled variable font** — `res/font/exo_variable.ttf` (175 KB, official Google Fonts
+   release under SIL OFL 1.1). Resource fonts default to `FontLoadingStrategy.Blocking`,
+   so the very first composition renders in Exo with no FOUT and no network/GMS
+   dependency. The TrueType GX `wght` axis is pinned per weight via
+   `FontVariation.Settings(FontVariation.weight(N))`.
+2. **Downloadable Google Fonts entry** — the original `Font(googleFont = ExoGoogleFont, …)`
+   declarations remain as a secondary layer. When the GMS provider serves an optimized
+   weight, Compose swaps it in transparently; until then the bundled font keeps the UI
+   correct.
+
+`FontVariation.Settings` on `Font(resId, …)` is annotated `@ExperimentalTextApi`. Per the
+"granular opt-in" rule, the experimental call is wrapped in a single private helper
+`exoVariableFont(weight)` carrying `@OptIn(ExperimentalTextApi::class)` — the file itself
+does **not** use `@file:OptIn`. Future Compose churn around this API can only break that
+one helper. Apply the same pattern when introducing any `ExperimentalMaterial3Api`
+composable (e.g., `TopAppBar`, `SearchBar`): annotate the smallest declaration that
+touches the experimental surface, and document why in a KDoc line above the annotation.
+
+License: ship the SIL OFL text alongside the font when releasing to production (typical
+placement: `app/src/main/assets/fonts/OFL.txt`). Not yet wired up — flag before the next
+public build.
 
 ### ✅ Phase 2 — IAM bounded context (complete)
 
@@ -321,6 +352,73 @@ class. AppCompatActivity remains fully Compose-compatible — `enableEdgeToEdge(
   thread screen to pick up a privacy preference change. Switch to a `Flow` if real-time
   updates are needed.
 - Image / attachment toolbar buttons are no-ops (Phase 5 will wire the picker).
+
+### 🧪 Mock Testing Harness (temporary — for UI walkthroughs before the backend lands)
+
+To let the team exercise the full login → home → forum → profile → logout journey without
+a reachable backend, three deliberate shortcuts are layered on top of the real stack.
+**All three are reversible single-file edits** and must be undone before the first
+backend-integrated build.
+
+#### 1. Relaxed login validation
+
+[AuthViewModel.submitLogin](app/src/main/java/com/elysium/softwork/iam/application/viewmodel/AuthViewModel.kt)
+no longer enforces corporate-email regex / 8-char password. The guard is now
+`email.isBlank() || password.isBlank()`. [LoginScreen](app/src/main/java/com/elysium/softwork/iam/presentation/views/login/LoginScreen.kt)
+mirrors the same condition on `SoftWorkButton.enabled`. The pure validators in
+`AuthValidation` are intentionally preserved for the switch-back.
+
+**Revert**: restore the original guard
+(`!current.isEmailFormatValid || current.email.isEmpty()` + `!current.isPasswordValid`)
+in `submitLogin`, and put the strict `isEmailFormatValid` / `isPasswordValid` checks back
+on the `enabled` expression in `LoginScreen`.
+
+#### 2. Mocked `AuthStoreImpl.login`
+
+[AuthStoreImpl.login](app/src/main/java/com/elysium/softwork/iam/data/store/AuthStoreImpl.kt)
+bypasses the Retrofit `AuthWebService` entirely. It simulates a 1 s round-trip via
+`delay(MOCK_DELAY_MS)`, returns `Result.success` with `User(id="1", username="Cesar",
+email=<input or cesar@gmail.com>, role="EMPLOYEE", token="MOCK_TOKEN_123")`, and persists
+`MOCK_TOKEN_123` + the user id in `SharedPrefsManager`. All mock literals live in a
+private `companion object` near the bottom of the class so the cleanup is one delete +
+one swap.
+
+Registration (`register`, `registerWithGoogle`) is **still wired to the real WebService** —
+only `login` is mocked.
+
+**Revert**: replace the mock body with
+`callAndPersist { webService.login(User(email = email, password = password)) }` and
+delete the `MOCK_*` companion. Drop the `kotlinx.coroutines.delay` import.
+
+#### 3. Mocked `PostStoreImpl.refresh`
+
+[PostStoreImpl.refresh](app/src/main/java/com/elysium/softwork/forum/data/store/PostStoreImpl.kt)
+skips the Retrofit `webService.list()` call and, when the Room table is empty, seeds it
+with **four** sample posts (`SeedPosts`). One post (`seed-2`) has `isAnonymous = true` so
+the `AnonymousBadge` UI is exercised. The original network branch is preserved as an
+inline comment showing the exact two-line restore.
+
+`publish(...)` is unchanged — it still attempts the network and falls back to a local
+insert with a generated UUID.
+
+**Revert**: uncomment the `webService.list()` / `dao.upsertAll(...)` lines and delete the
+`SeedPosts` companion entries that are no longer wanted (keep the seed if you still want
+the no-backend demo path, but trim it to the contract the real API will return).
+
+#### What still works without a backend
+
+- Cold launch → LoginScreen, fields empty, button disabled.
+- Type any email + any password → button enables.
+- Tap **Iniciar sesión** → 1 s spinner → AuthSuccessScreen ("Sesión iniciada").
+- Tap **Menú inicial** → `MainNavHost` mounts on Home.
+- Foro tab → 4 seeded posts, anonymous badge on `seed-2`.
+- Perfil tab → **Cerrar sesión** → `authStore.clearSession()` + state flip → LoginScreen.
+
+#### Recovery on the next session
+
+Token state survives process death (`SharedPrefsManager` is real). To force the IAM graph
+again without logging out, uninstall + reinstall, or call `clearSession()` from a debug
+hook.
 
 ### 🔜 Next — Phase 5
 
