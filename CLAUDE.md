@@ -46,13 +46,13 @@ On Windows (PowerShell): swap `./gradlew` for `.\gradlew.bat`.
 
 **Package-by-feature, DDD-style bounded contexts** under `com.elysium.softwork`:
 
-| Package      | Responsibility                                       |
-|--------------|------------------------------------------------------|
-| `shared`     | Cross-cutting code (theme, components, i18n, network/local infra, core utilities) |
-| `iam`        | Identity & Access — Employee login, session, profile |
-| `forum`      | Workers Forum — posts, comments, reactions           |
-| `feedback`   | Check-ins & Reports — periodic feedback to HR        |
-| `payments`   | Payment processing — transactions, invoices          |
+| Package              | Responsibility                                                                    |
+|----------------------|-----------------------------------------------------------------------------------|
+| `shared`             | Cross-cutting code (theme, components, i18n, network/local infra, core utilities) |
+| `iam`                | Identity & Access — Employee login, session, profile                              |
+| `worker.forum`       | Workers Forum — posts, comments, reactions                                        |
+| `feedback`           | Check-ins & Reports — periodic feedback to HR                                     |
+| `payment.service`    | Payment processing — transactions, invoices                                       |
 
 **Each context owns four layers:**
 

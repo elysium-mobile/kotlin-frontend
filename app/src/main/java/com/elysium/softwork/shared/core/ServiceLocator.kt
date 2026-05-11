@@ -1,10 +1,10 @@
 package com.elysium.softwork.shared.core
 
 import android.content.Context
-import com.elysium.softwork.forum.data.local.ForumDatabase
-import com.elysium.softwork.forum.data.network.PostWebService
-import com.elysium.softwork.forum.data.store.PostStore
-import com.elysium.softwork.forum.data.store.PostStoreImpl
+import com.elysium.softwork.worker.forum.data.local.ForumDatabase
+import com.elysium.softwork.worker.forum.data.network.PostWebService
+import com.elysium.softwork.worker.forum.data.store.PostStore
+import com.elysium.softwork.worker.forum.data.store.PostStoreImpl
 import com.elysium.softwork.iam.data.network.AuthWebService
 import com.elysium.softwork.iam.data.store.AuthStore
 import com.elysium.softwork.iam.data.store.AuthStoreImpl

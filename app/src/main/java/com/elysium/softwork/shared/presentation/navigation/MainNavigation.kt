@@ -31,8 +31,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.elysium.softwork.R
-import com.elysium.softwork.forum.presentation.navigation.ForumRoutes
-import com.elysium.softwork.forum.presentation.navigation.forumGraph
+import com.elysium.softwork.worker.forum.presentation.navigation.ForumRoutes
+import com.elysium.softwork.worker.forum.presentation.navigation.forumGraph
 import com.elysium.softwork.shared.presentation.views.home.HomeScreen
 import com.elysium.softwork.shared.presentation.views.identity.ProtectedIdentityScreen
 import com.elysium.softwork.shared.presentation.views.profile.ProfileScreen
@@ -50,7 +50,7 @@ private data class BottomDestination(
 )
 
 /**
- * Routes for the authenticated shell. The Foro tab points at [ForumRoutes.FEED] so the
+ * Routes for the authenticated shell. The Forum tab points at [ForumRoutes.FEED] so the
  * forum's nested back stack participates in the shared NavHost.
  */
 object MainRoutes {
