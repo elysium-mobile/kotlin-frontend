@@ -330,5 +330,91 @@ class. AppCompatActivity remains fully Compose-compatible — `enableEdgeToEdge(
 - Forgot-password flow.
 - Auth header interceptor on `ApiClient` once the backend session contract is finalized.
 
+---
+
+## Security & Environment Variables
+
+The app is built with **zero secrets in source**. Backend URLs and third-party API keys are
+injected at compile time via the [Secrets Gradle Plugin for Android](https://developers.google.com/maps/documentation/android-sdk/secrets-gradle-plugin)
+and exposed to Kotlin through `BuildConfig` fields.
+
+### Local setup (new developer checklist)
+
+1. Copy the committed template to a personal, gitignored file:
+   ```bash
+   cp secrets.defaults.properties secrets.properties
+   ```
+2. Fill in real values in `secrets.properties` (see the keys below). **Never commit this
+   file** — it is listed in `.gitignore`.
+3. Build normally: `./gradlew assembleDebug` (or `.\gradlew.bat assembleDebug` on Windows).
+   The plugin reads `secrets.properties` first, then falls back to
+   `secrets.defaults.properties` for any missing key, so an unconfigured environment still
+   builds and boots.
+
+### Available keys
+
+| Properties key | Generated constant | Consumer |
+|---|---|---|
+| `BACKEND_BASE_URL` | `BuildConfig.BACKEND_BASE_URL` | `ApiClient.retrofit` base URL — fail-fast if blank |
+| `API_KEY_GEMINI` | `BuildConfig.API_KEY_GEMINI` | `ApiKeyInterceptor` → `x-goog-api-key` header on `generativelanguage.googleapis.com` |
+| `API_KEY_GMAIL` | `BuildConfig.API_KEY_GMAIL` | Reserved for future Gmail integration |
+| `API_KEY_EXTERNAL_SERVICE` | `BuildConfig.API_KEY_EXTERNAL_SERVICE` | `ApiKeyInterceptor` → `X-Api-Key` header on the configured external host |
+
+### CI / pipelines
+
+CI must materialize `secrets.properties` from the team secret manager **before** invoking
+`./gradlew assembleRelease`. The committed defaults file alone produces a build that boots
+but with no functional third-party integrations — adequate for unit tests and static
+analysis only.
+
+### Network layer rule
+
+The base URL has exactly **one** source of truth: `BuildConfig.BACKEND_BASE_URL`. Retrofit
+`WebService` interfaces (`AuthWebService`, `PostWebService`, …) must only declare
+**relative paths** in their `@GET`/`@POST` annotations. Reintroducing a full URL — or any
+new `"https://..."` literal anywhere under `app/src/main/` — is a regression and must be
+caught in review.
+
+Third-party API keys must never appear in `WebService` annotations either. Route them
+through `ApiKeyInterceptor` on a per-host basis (see `ApiKeyInterceptor.hostKeyMap`).
+
+### The `unset` sentinel
+
+The Secrets Gradle Plugin refuses to emit empty-string values as `BuildConfig` fields
+(generates illegal Java). The defaults file therefore uses the literal string `unset` as
+the placeholder for unconfigured API keys. `ApiKeyInterceptor` recognizes this sentinel
+and **skips header injection** for it, so a default build sends no third-party credentials
+rather than leaking the string `"unset"` over the wire. Replace `unset` with a real key in
+`secrets.properties` to enable the corresponding integration.
+
+### Adding a new key
+
+1. Append the new key to `secrets.defaults.properties` with a non-blank placeholder (use
+   `unset` — see above).
+2. Declare the matching `buildConfigField("String", "MY_NEW_KEY", "\"\"")` inside
+   `android { defaultConfig { ... } }` in `app/build.gradle.kts`. This is the fallback the
+   secrets plugin overwrites when the same name is present in `secrets.properties`.
+3. Consume it from Kotlin via `BuildConfig.MY_NEW_KEY`. For host-scoped third-party keys,
+   add an entry to `ApiKeyInterceptor.hostKeyMap` rather than handling it in a store.
+
+### New dependencies (with rationale)
+
+- `com.google.android.libraries.mapsplatform.secrets-gradle-plugin:2.0.1` — generates
+  `BuildConfig` fields from `secrets.properties` with a committed defaults fallback.
+- `com.squareup.okhttp3:okhttp:4.12.0` — pinned explicitly (Retrofit 3 brings it
+  transitively) so the version is locked and an `OkHttpClient.Builder` can register the
+  interceptor chain.
+- `com.squareup.okhttp3:logging-interceptor:4.12.0` (debug only) — `BODY`-level request
+  logging in Logcat. Never reaches release builds.
+
+### AGP 9 compatibility note
+
+The Secrets Gradle Plugin (2.0.1, Apr 2024) predates AGP 9. If a future AGP bump breaks it,
+the plugin can be replaced by ~15 lines of inline `Properties().load(...)` +
+`buildConfigField(...)` in `app/build.gradle.kts`; the rest of the stack (`BuildConfig`
+consumers, interceptor, defaults file) is unaffected by that swap.
+
+---
+
 # Final Consideration
 - When implementing important changes or adding new dependencies, please update this document with the rationale and the impact on the architecture. This will help maintain a clear understanding of the design decisions and ensure consistency across the codebase.

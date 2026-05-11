@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.secrets.gradle)
     id("com.google.devtools.ksp")
 }
 
@@ -20,6 +21,15 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // BuildConfig fallbacks. The Secrets Gradle Plugin overrides these at build time
+        // by reading secrets.properties (gitignore) and falling back to
+        // secrets.defaults.properties (committed). Empty defaults keep the build green
+        // when a developer hasn't created secrets.properties yet.
+        buildConfigField("String", "BACKEND_BASE_URL", "\"\"")
+        buildConfigField("String", "API_KEY_GEMINI", "\"\"")
+        buildConfigField("String", "API_KEY_GMAIL", "\"\"")
+        buildConfigField("String", "API_KEY_EXTERNAL_SERVICE", "\"\"")
     }
 
     buildTypes {
@@ -37,16 +47,27 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
+}
+
+secrets {
+    propertiesFileName = "secrets.properties"
+    defaultPropertiesFileName = "secrets.defaults.properties"
+    ignoreList.add("sdk.*")
+    ignoreList.add("keystore.*")
 }
 
 dependencies {
     // Navigation
     implementation(libs.androidx.navigation.compose)
 
-    // Retrofit
+    // Retrofit + OkHttp (OkHttp pinned explicitly so the version is locked, and we can
+    // gate the logging interceptor to debug builds only).
     implementation(libs.retrofit)
     implementation(libs.converter.gson)
+    implementation(libs.okhttp)
+    debugImplementation(libs.okhttp.logging.interceptor)
 
     // Room (ORM)
     implementation(libs.androidx.room.runtime)
