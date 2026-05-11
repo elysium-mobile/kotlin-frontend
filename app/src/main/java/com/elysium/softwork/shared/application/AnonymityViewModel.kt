@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
  *
  * Initial state is loaded from [SharedPrefsManager] on construction; toggle handlers update
  * the in-memory buffer only. Persistence happens explicitly when the user taps
- * "Guardar preferencias" → [save]. This matches the explicit-save UX of the screen and
+ * "Save preferences" → [save]. This matches the explicit-save UX of the screen and
  * lets the user back out of unintended changes by simply navigating back.
  */
 class AnonymityViewModel(private val prefs: SharedPrefsManager) : ViewModel() {

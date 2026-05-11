@@ -55,7 +55,7 @@ class SharedPrefsManager(context: Context) {
         /** Storage key for the global anonymity master switch. */
         const val KEY_GLOBAL_ANONYMITY: String = "global_anonymity"
 
-        /** Storage key for the per-context anonymity flag in the workers forum. */
+        /** Storage key for the per-context anonymity flag in the workers' forum. */
         const val KEY_FORUM_ANONYMITY: String = "forum_anonymity"
 
         /** Storage key for the per-context anonymity flag in surveys. */

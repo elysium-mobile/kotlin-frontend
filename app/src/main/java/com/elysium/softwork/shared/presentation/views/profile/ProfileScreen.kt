@@ -49,7 +49,7 @@ import com.elysium.softwork.shared.presentation.theme.PrimarySky
  * card (live language toggle wired to [LocaleHelper]) → payment card → edit-profile button →
  * logout text button.
  *
- * @param onEditProfile handler for both header "Editar" and the bottom "Editar perfil" button.
+ * @param onEditProfile handler for both header "Edit" and the bottom "Edit Profile" button.
  * @param onLogout handler that should clear the session and route back to the IAM graph.
  * @param onOpenAnonymousForumSettings handler for the privacy row.
  * @param onOpenPaymentMethods handler for the payment row.

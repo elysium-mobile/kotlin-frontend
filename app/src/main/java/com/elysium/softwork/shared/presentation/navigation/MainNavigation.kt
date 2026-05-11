@@ -31,6 +31,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.elysium.softwork.R
+import com.elysium.softwork.forum.presentation.navigation.ForumRoutes
+import com.elysium.softwork.forum.presentation.navigation.forumGraph
 import com.elysium.softwork.shared.presentation.views.home.HomeScreen
 import com.elysium.softwork.shared.presentation.views.identity.ProtectedIdentityScreen
 import com.elysium.softwork.shared.presentation.views.profile.ProfileScreen
@@ -47,11 +49,13 @@ private data class BottomDestination(
     val contentDescriptionRes: Int,
 )
 
-/** Routes for the authenticated shell. */
+/**
+ * Routes for the authenticated shell. The Foro tab points at [ForumRoutes.FEED] so the
+ * forum's nested back stack participates in the shared NavHost.
+ */
 object MainRoutes {
     const val HOME: String = "main/home"
     const val PROFILE: String = "main/profile"
-    const val FORUM: String = "main/forum"
     const val NOTIFICATIONS: String = "main/notifications"
     const val PROTECTED_IDENTITY: String = "main/protected-identity"
 }
@@ -59,7 +63,7 @@ object MainRoutes {
 private val BottomDestinations: List<BottomDestination> = listOf(
     BottomDestination(MainRoutes.HOME, R.string.nav_home, R.drawable.ic_home, R.string.cd_home),
     BottomDestination(MainRoutes.PROFILE, R.string.nav_profile, R.drawable.ic_person, R.string.cd_user_icon),
-    BottomDestination(MainRoutes.FORUM, R.string.nav_forum, R.drawable.ic_forum, R.string.cd_forum),
+    BottomDestination(ForumRoutes.FEED, R.string.nav_forum, R.drawable.ic_forum, R.string.cd_forum),
     BottomDestination(MainRoutes.NOTIFICATIONS, R.string.nav_notifications, R.drawable.ic_notifications, R.string.cd_notifications),
 )
 
@@ -93,7 +97,7 @@ fun MainNavHost(
                 HomeScreen(
                     userName = userName,
                     onReportIncident = { /* Phase 5: incident flow not yet implemented. */ },
-                    onOpenForums = { navController.navigateToTab(MainRoutes.FORUM) },
+                    onOpenForums = { navController.navigateToTab(ForumRoutes.FEED) },
                     onOpenAssistant = { /* Phase 6: AI assistant not yet implemented. */ },
                 )
             }
@@ -113,12 +117,7 @@ fun MainNavHost(
                     onSaved = { navController.popBackStack() },
                 )
             }
-            composable(MainRoutes.FORUM) {
-                PlaceholderScreen(
-                    title = stringResource(R.string.placeholder_forum_title),
-                    subtitle = stringResource(R.string.placeholder_forum_subtitle),
-                )
-            }
+            forumGraph(navController = navController, userName = userName)
             composable(MainRoutes.NOTIFICATIONS) {
                 PlaceholderScreen(
                     title = stringResource(R.string.placeholder_notifications_title),

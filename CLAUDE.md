@@ -268,9 +268,64 @@ On API 33+ the platform `LocaleManager` handles recreation regardless of the act
 class. AppCompatActivity remains fully Compose-compatible — `enableEdgeToEdge()` and
 `setContent` work as before.
 
-### 🔜 Next — Phase 4
+### ✅ Phase 4 — Forum bounded context (complete, offline-first)
 
-- Forum (`forum/`) bounded context — replace the placeholder, wire to a `PostStore`.
+- **Domain**: [`Post`](app/src/main/java/com/elysium/softwork/forum/domain/model/Post.kt) data
+  class doubles as a Room `@Entity(tableName = "posts")` and a Gson `@SerializedName` bean —
+  the same instance flows through `PostWebService` requests/responses and into the local
+  cache. All non-key fields default so partially populated drafts can be passed end-to-end.
+- **Data — local**: `PostDao` exposes `getAllPosts(): Flow<List<Post>>`, a `count()` for the
+  seed branch, and `upsertAll` / `upsert` (REPLACE on conflict). `ForumDatabase` (Room
+  v1, `forum.db`) is built via a `companion object create(context)`.
+- **Data — network**: `PostWebService` declares `@GET("posts")` and `@POST("posts")`. Both
+  endpoints carry `Post` directly per the bean shortcut.
+- **Data — store**: `PostStore` interface + `PostStoreImpl` implementing the
+  **offline-first** contract:
+  - `observe()` returns the Room `Flow` directly — UI always renders cached state.
+  - `refresh()` tries the network and upserts on success; **fallback**: when the cache is
+    empty after a failed refresh it seeds three bundled sample posts so the demo is alive
+    without a backend. Remove the seed when the API is live.
+  - `publish(...)` always inserts locally (using a UUID when the server is unreachable) so
+    the user sees their post immediately; the next refresh reconciles.
+- **Application**: `ForumCategory` enum (`SUGGESTIONS`, `QUESTIONS`, `EVENTS`, `CONFLICTS`)
+  carries the wire `key` + the localized `labelRes`. ViewModels in
+  `forum/application/viewmodel/`:
+  - `ForumViewModel` — combines the cached posts flow with an in-memory category filter,
+    triggers `store.refresh()` on init, exposes `posts: StateFlow<List<Post>>`.
+  - `NewPostViewModel` — reads `forum_anonymity` from `SharedPrefsManager` on construction
+    and surfaces it via `isAnonymous`. The user does **not** toggle anonymity here; it must
+    be set on the protected-identity screen. Form has a 500-char limit, exposes
+    `PublishState` (Idle / Publishing / Published / Error).
+  - `ThreadViewModel` — loads a single post by id, surfaces `isAnonymous` for the sticky
+    input. Comments are static samples in Phase 4 (Comment store lands in Phase 5).
+- **Presentation**: screens under `forum/presentation/views/{feed,newpost,thread}/`,
+  components (`AnonymousBadge`, `CategoryChips`, `Chip`) under
+  `forum/presentation/components/`. Navigation in `forum/presentation/navigation/`:
+  `ForumRoutes` (`forum/feed`, `forum/new-post`, `forum/thread/{postId}`) +
+  `forumGraph(navController, userName)` extension that `MainNavHost` invokes.
+- **MainNavigation update**: the Foro bottom tab now routes to `ForumRoutes.FEED`. The
+  in-progress placeholder screen for the Foro tab was removed; the home action card
+  ("Internal forums") also navigates to `ForumRoutes.FEED`.
+- **Wiring**: `ServiceLocator` now owns a process-wide `ForumDatabase` and exposes
+  `postStore: PostStore`. ViewModel factories pull `postStore` (and `sharedPrefsManager`)
+  from the locator just like `AuthViewModel` and `AnonymityViewModel`.
+- **Icons added**: `ic_close`, `ic_send`, `ic_paperclip`, `ic_image`, `ic_add` (FAB glyph).
+
+#### Phase 4 caveats
+
+- The 3 seeded posts are hard-coded in `PostStoreImpl.SeedPosts` — **delete that companion
+  block** when the live `/posts` endpoint is ready.
+- Comments are stubbed in `ThreadScreen.SAMPLE_COMMENTS`. A real Comment domain + store +
+  WebService land in Phase 5.
+- `forum_anonymity` is read **once** on ViewModel construction. Re-enter the new-post or
+  thread screen to pick up a privacy preference change. Switch to a `Flow` if real-time
+  updates are needed.
+- Image / attachment toolbar buttons are no-ops (Phase 5 will wire the picker).
+
+### 🔜 Next — Phase 5
+
+- Comment domain + store + WebService backing `ThreadScreen`.
+- Image / attachment picker for the new-post composer.
 - Real user/profile data sourced from a `ProfileStore` (replace placeholder strings).
 - Forgot-password flow.
 - Auth header interceptor on `ApiClient` once the backend session contract is finalized.

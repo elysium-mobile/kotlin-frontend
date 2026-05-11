@@ -82,6 +82,26 @@
     <string name="profile_edit_button">Edit profile</string>
     <string name="profile_logout">Log out</string>
 
+    <!-- Forum -->
+    <string name="forum_title">Forum</string>
+    <string name="forum_category_label">Category</string>
+    <string name="forum_category_all">All</string>
+    <string name="forum_category_suggestions">#Suggestions</string>
+    <string name="forum_category_questions">#Questions</string>
+    <string name="forum_category_events">#Events</string>
+    <string name="forum_category_conflicts">#Conflicts</string>
+    <string name="forum_anonymous_author">Anonymous</string>
+    <string name="forum_replies_count">💬 %1$d</string>
+    <string name="forum_new_post">New post</string>
+    <string name="forum_new_post_publish">Publish</string>
+    <string name="forum_post_title_hint">Title</string>
+    <string name="forum_post_hint">What\'s on your mind?</string>
+    <string name="forum_post_counter">%1$d/%2$d</string>
+    <string name="forum_identity_warning_anon">You are posting as Anonymous</string>
+    <string name="forum_identity_warning_user">Posting as %1$s</string>
+    <string name="forum_thread_comment_hint">Write a comment…</string>
+    <string name="forum_thread_replies_section">Replies</string>
+
     <!-- Protected identity screen -->
     <string name="protected_identity_title">Protected identity</string>
     <string name="protected_identity_anonymous_user">Anonymous user</string>
@@ -112,4 +132,9 @@
     <string name="cd_notifications">Notifications</string>
     <string name="cd_anonymous_avatar">Anonymous user avatar</string>
     <string name="cd_lock">Lock</string>
+    <string name="cd_close">Close</string>
+    <string name="cd_send">Send</string>
+    <string name="cd_paperclip">Attachment</string>
+    <string name="cd_image">Add image</string>
+    <string name="cd_new_post">New post</string>
 </resources>

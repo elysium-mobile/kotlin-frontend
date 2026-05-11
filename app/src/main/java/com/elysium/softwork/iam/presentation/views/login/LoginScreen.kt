@@ -45,7 +45,7 @@ import com.elysium.softwork.shared.presentation.theme.PrimarySky
  * Login surface for the SoftWork Employee app.
  *
  * Layout: brand logo + product name → "Bienvenido de vuelta" subtitle → email/password
- * inputs → forgot-password link (right-aligned) → primary "Iniciar sesión" button →
+ * inputs → forgot-password link (right-aligned) → primary "Sign in" button →
  * outline Google button → footer link to register.
  *
  * @param onLoginSuccess invoked when the auth call completes successfully.
