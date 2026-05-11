@@ -1,18 +1,22 @@
 package com.elysium.softwork.shared.presentation.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.googlefonts.Font
 import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.unit.sp
 import com.elysium.softwork.R
+import androidx.compose.ui.text.googlefonts.Font as GoogleFontEntry
 
 /**
  * Google Fonts provider backed by the Google Play Services certificate set bundled in
- * `res/values/font_certs.xml`. Required so Compose can fetch the [ExoFontFamily] at runtime.
+ * `res/values/font_certs.xml`. The downloadable provider is a non-blocking enhancement
+ * layered on top of the bundled variable font — see [ExoFontFamily].
  */
 private val SoftWorkGoogleFontProvider: GoogleFont.Provider = GoogleFont.Provider(
     providerAuthority = "com.google.android.gms.fonts",
@@ -23,14 +27,51 @@ private val SoftWorkGoogleFontProvider: GoogleFont.Provider = GoogleFont.Provide
 private val ExoGoogleFont: GoogleFont = GoogleFont("Exo")
 
 /**
- * Brand font family. SoftWork uses Exo across the entire UI; weights are limited to the four
- * actually consumed by [SoftWorkTypography] to keep cold-start font fetches small.
+ * Builds a [Font] entry that points at the bundled Exo variable TTF and pins its `wght`
+ * axis to the supplied [weight]. Isolated as a single helper so the experimental opt-in
+ * has the narrowest possible scope — every other declaration in this file stays on the
+ * stable API surface.
+ *
+ * The `variationSettings` parameter of `Font(resId, ...)` is annotated
+ * `@ExperimentalTextApi` in Compose UI Text. Opting in here (rather than at file scope)
+ * keeps the experimental surface localized: if the API ships under a new name or signature
+ * in a future Compose release, only this function needs to change.
+ */
+@OptIn(ExperimentalTextApi::class)
+private fun exoVariableFont(weight: FontWeight): Font = Font(
+    resId = R.font.exo_variable,
+    weight = weight,
+    style = FontStyle.Normal,
+    variationSettings = FontVariation.Settings(FontVariation.weight(weight.weight)),
+)
+
+/**
+ * Brand font family.
+ *
+ * Resolution order — Compose picks the first [Font] in this list that matches the
+ * requested weight/style **and** is already loaded:
+ *
+ * 1. **Bundled variable font** (`res/font/exo_variable.ttf`). Resource fonts default to
+ *    [androidx.compose.ui.text.font.FontLoadingStrategy.Blocking], so the very first
+ *    composition renders with Exo — no FOUT, no waiting on GMS, no network. Required
+ *    to keep Compose `@Preview` rendering in Exo and to support devices that don't ship
+ *    Google Play Services Fonts (some emulators, some carriers, AOSP builds).
+ * 2. **Downloadable Google Fonts entry**. Once the GMS provider serves the optimized
+ *    weight, Compose swaps it in transparently. Acts as the online upgrade path; the
+ *    bundled font keeps the UI looking correct in the meantime.
+ *
+ * Weights enumerated: Normal/Medium/SemiBold/Bold — the four consumed by
+ * [SoftWorkTypography]. Add new weights here, not in a screen-local override.
  */
 val ExoFontFamily: FontFamily = FontFamily(
-    Font(googleFont = ExoGoogleFont, fontProvider = SoftWorkGoogleFontProvider, weight = FontWeight.Normal, style = FontStyle.Normal),
-    Font(googleFont = ExoGoogleFont, fontProvider = SoftWorkGoogleFontProvider, weight = FontWeight.Medium, style = FontStyle.Normal),
-    Font(googleFont = ExoGoogleFont, fontProvider = SoftWorkGoogleFontProvider, weight = FontWeight.SemiBold, style = FontStyle.Normal),
-    Font(googleFont = ExoGoogleFont, fontProvider = SoftWorkGoogleFontProvider, weight = FontWeight.Bold, style = FontStyle.Normal),
+    exoVariableFont(FontWeight.Normal),
+    exoVariableFont(FontWeight.Medium),
+    exoVariableFont(FontWeight.SemiBold),
+    exoVariableFont(FontWeight.Bold),
+    GoogleFontEntry(googleFont = ExoGoogleFont, fontProvider = SoftWorkGoogleFontProvider, weight = FontWeight.Normal, style = FontStyle.Normal),
+    GoogleFontEntry(googleFont = ExoGoogleFont, fontProvider = SoftWorkGoogleFontProvider, weight = FontWeight.Medium, style = FontStyle.Normal),
+    GoogleFontEntry(googleFont = ExoGoogleFont, fontProvider = SoftWorkGoogleFontProvider, weight = FontWeight.SemiBold, style = FontStyle.Normal),
+    GoogleFontEntry(googleFont = ExoGoogleFont, fontProvider = SoftWorkGoogleFontProvider, weight = FontWeight.Bold, style = FontStyle.Normal),
 )
 
 /**
