@@ -52,7 +52,7 @@ On Windows (PowerShell): swap `./gradlew` for `.\gradlew.bat`.
 | `iam`                | Identity & Access — Employee login, session, profile                              |
 | `worker.forum`       | Workers Forum — posts, comments, reactions                                        |
 | `feedback`           | Check-ins & Reports — periodic feedback to HR                                     |
-| `payment.service`    | Payment processing — transactions, invoices                                       |
+| `payment.membership` | Payment processing — transactions, invoices                                       |
 
 **Each context owns four layers:**
 
