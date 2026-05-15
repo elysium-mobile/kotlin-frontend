@@ -1,0 +1,169 @@
+<resources>
+    <string name="app_name">SoftWork</string>
+
+    <!-- Login screen -->
+    <string name="login_welcome">Bienvenido de nuevo</string>
+    <string name="login_welcome_back">Bienvenido de vuelta</string>
+    <string name="login_button">Iniciar sesión</string>
+    <string name="email_label">Correo electrónico</string>
+    <string name="corporate_email_label">Correo institucional</string>
+    <string name="password_label">Contraseña</string>
+    <string name="forgot_password">¿Olvidaste tu contraseña?</string>
+    <string name="continue_with_google">Continuar con Google</string>
+    <string name="register_link">¿No tienes cuenta? Regístrate</string>
+
+    <!-- Register screens -->
+    <string name="create_account">Crear cuenta</string>
+    <string name="corporate_email_only">Solo se aceptan correos corporativos</string>
+    <string name="username_label">Nombre de Usuario</string>
+    <string name="corporate_email_label_register">Correo corporativo</string>
+    <string name="confirm_password_label">Confirmar contraseña</string>
+    <string name="domain_verified">Dominio verificado</string>
+    <string name="role_employee">Empleado</string>
+    <string name="register_google_subtitle">Registre su nombre</string>
+
+    <!-- Success screen -->
+    <string name="user_registered">Usuario registrado</string>
+    <string name="session_started">Sesión iniciada</string>
+    <string name="main_menu">Menú inicial</string>
+
+    <!-- Validation -->
+    <string name="error_invalid_email">Ingresa un correo válido</string>
+    <string name="error_password_too_short">La contraseña debe tener al menos 8 caracteres</string>
+    <string name="error_passwords_do_not_match">Las contraseñas no coinciden</string>
+    <string name="error_username_required">El nombre de usuario es obligatorio</string>
+    <string name="error_generic">Algo salió mal. Inténtalo de nuevo.</string>
+
+    <!-- Bottom navigation -->
+    <string name="nav_home">Menú</string>
+    <string name="nav_profile">Perfil</string>
+    <string name="nav_forum">Foro</string>
+    <string name="nav_notifications">Notificaciones</string>
+
+    <!-- Home screen -->
+    <string name="home_greeting">Buenos días</string>
+    <string name="home_user_name_placeholder">Carlos Ramos</string>
+    <string name="home_mood_question">¿Cómo te sientes hoy?</string>
+    <string name="home_anonymous_badge">ANÓNIMO</string>
+    <string name="home_report_incident">Reportar incidente</string>
+    <string name="home_report_incident_subtitle">100% anónimo y encriptado</string>
+    <string name="home_internal_forums">Foros internos</string>
+    <string name="home_internal_forums_subtitle">12 conversaciones activas</string>
+    <string name="home_ai_assistant">Asistente de IA</string>
+    <string name="home_ai_assistant_subtitle">Disponible 24/7</string>
+    <string name="home_surveys">Encuestas</string>
+    <string name="home_surveys_subtitle">Ver encuestas pendientes</string>
+    <string name="home_membership">Membresía</string>
+    <string name="home_membership_subtitle">Actualizar plan</string>
+
+    <!-- Forum / notifications placeholders -->
+    <string name="placeholder_forum_title">Foro</string>
+    <string name="placeholder_forum_subtitle">Próximamente</string>
+    <string name="placeholder_notifications_title">Notificaciones</string>
+    <string name="placeholder_notifications_subtitle">Próximamente</string>
+    <string name="placeholder_membership_title">Membresía</string>
+    <string name="placeholder_membership_subtitle">Los detalles de la membresía aparecerán pronto</string>
+    <string name="placeholder_surveys_title">Encuestas</string>
+    <string name="placeholder_surveys_subtitle">Tus encuestas aparecerán aquí</string>
+
+    <!-- Profile screen -->
+    <string name="profile_title">Mi perfil</string>
+    <string name="profile_edit_action">Editar</string>
+    <string name="profile_sample_name">Carlos Ramos</string>
+    <string name="profile_sample_role">Desarrollador Senior · TechCorp S.A.</string>
+    <string name="profile_section_work_info">Información laboral</string>
+    <string name="profile_company_label">Empresa</string>
+    <string name="profile_company_value">TechCorp S.A.</string>
+    <string name="profile_area_label">Área</string>
+    <string name="profile_area_value">Tecnología</string>
+    <string name="profile_position_label">Cargo</string>
+    <string name="profile_position_value">Desarrollador Senior</string>
+    <string name="profile_email_label_row">Correo</string>
+    <string name="profile_email_value">carlos.ramos@techcorp.com</string>
+    <string name="profile_section_privacy">Privacidad</string>
+    <string name="profile_anonymous_forum">Modo anónimo en foro</string>
+    <string name="profile_section_language">Idioma de la aplicación</string>
+    <string name="profile_language_es">Español</string>
+    <string name="profile_language_en">English</string>
+    <string name="profile_section_payment">Pago</string>
+    <string name="profile_payment_methods">Métodos de pago</string>
+    <string name="profile_edit_button">Editar perfil</string>
+    <string name="profile_logout">Cerrar sesión</string>
+
+    <!-- Forum -->
+    <string name="forum_title">Foro</string>
+    <string name="forum_category_label">Categoría</string>
+    <string name="forum_category_all">Todas</string>
+    <string name="forum_category_suggestions">#Sugerencias</string>
+    <string name="forum_category_questions">#Dudas</string>
+    <string name="forum_category_events">#Eventos</string>
+    <string name="forum_category_conflicts">#Conflictos</string>
+    <string name="forum_anonymous_author">Anónimo</string>
+    <string name="forum_replies_count">💬 %1$d</string>
+    <string name="forum_new_post">Nueva publicación</string>
+    <string name="forum_new_post_publish">Publicar</string>
+    <string name="forum_post_title_hint">Título</string>
+    <string name="forum_post_hint">¿Qué quieres compartir?</string>
+    <string name="forum_post_counter">%1$d/%2$d</string>
+    <string name="forum_identity_warning_anon">Estás publicando como Anónimo</string>
+    <string name="forum_identity_warning_user">Publicando como %1$s</string>
+    <string name="forum_thread_comment_hint">Escribe un comentario…</string>
+    <string name="forum_thread_replies_section">Respuestas</string>
+
+    <!-- Forum Report -->
+    <string name="report_title">Reportar</string>
+    <string name="report_banner_text">Tu denuncia se cifra de extremo a extremo. RRHH nunca podrá identificarte como autor.</string>
+    <string name="report_type_label">Tipo de irregularidad</string>
+    <string name="report_type_harassment">Acoso</string>
+    <string name="report_type_discrimination">Discriminación</string>
+    <string name="report_type_security">Seguridad</string>
+    <string name="report_type_ethics">Ética</string>
+    <string name="report_type_other">Otro</string>
+    <string name="report_area_label">Área involucrada</string>
+    <string name="report_area_placeholder">Seleccionar área…</string>
+    <string name="report_description_label">Descripción detallada</string>
+    <string name="report_description_placeholder">Describe los hechos con el mayor detalle posible. Incluye fechas, personas involucradas y evidencias disponibles…</string>
+    <string name="report_date_label">Fecha aproximada</string>
+    <string name="report_date_placeholder">dd / mm / aaaa</string>
+    <string name="report_anonymous_label">Enviar de forma completamente anónima</string>
+    <string name="report_anonymous_notice">Esta opción está siempre activa para proteger tu identidad</string>
+    <string name="report_submit_button">Enviar denuncia cifrada</string>
+    <string name="report_success">Reporte enviado con éxito</string>
+    <string name="report_tracking_code_notice">Recibirás un código de seguimiento anónimo por correo cifrado</string>
+
+    <!-- Protected identity screen -->
+    <string name="protected_identity_title">Identidad protegida</string>
+    <string name="protected_identity_anonymous_user">Usuario Anónimo</string>
+    <string name="protected_identity_description">Tu identidad está completamente protegida. Nadie puede vincular tus publicaciones contigo.</string>
+    <string name="protected_identity_global_label">Modo anónimo global</string>
+    <string name="protected_identity_global_description">Activa el anonimato en toda la aplicación</string>
+    <string name="protected_identity_hide_forum">Ocultar identidad en el foro</string>
+    <string name="protected_identity_hide_surveys">Ocultar identidad en encuestas</string>
+    <string name="protected_identity_hide_reports">Ocultar identidad en denuncias</string>
+    <string name="protected_identity_hr_notice">RRHH nunca podrá identificarte en publicaciones anónimas</string>
+    <string name="protected_identity_save">Guardar preferencias</string>
+
+    <!-- A11y -->
+    <string name="cd_back">Atrás</string>
+    <string name="cd_toggle_password_visibility">Mostrar u ocultar contraseña</string>
+    <string name="cd_logo">Logo de SoftWork</string>
+    <string name="cd_google_logo">Logo de Google</string>
+    <string name="cd_user_icon">Usuario</string>
+    <string name="cd_success_check">Éxito</string>
+    <string name="cd_avatar">Avatar del usuario</string>
+    <string name="cd_chevron">Abrir</string>
+    <string name="cd_shield">Escudo</string>
+    <string name="cd_people">Personas</string>
+    <string name="cd_sparkle">Asistente IA</string>
+    <string name="cd_edit">Editar</string>
+    <string name="cd_home">Inicio</string>
+    <string name="cd_forum">Foro</string>
+    <string name="cd_notifications">Notificaciones</string>
+    <string name="cd_anonymous_avatar">Avatar de usuario anónimo</string>
+    <string name="cd_lock">Candado</string>
+    <string name="cd_close">Cerrar</string>
+    <string name="cd_send">Enviar</string>
+    <string name="cd_paperclip">Adjunto</string>
+    <string name="cd_image">Agregar imagen</string>
+    <string name="cd_new_post">Nueva publicación</string>
+</resources>

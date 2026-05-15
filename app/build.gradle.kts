@@ -1,0 +1,105 @@
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.secrets.gradle)
+    id("com.google.devtools.ksp")
+}
+
+android {
+    namespace = "com.elysium.softwork"
+    compileSdk {
+        version = release(36) {
+            minorApiLevel = 1
+        }
+    }
+
+    defaultConfig {
+        applicationId = "com.elysium.softwork"
+        minSdk = 29
+        targetSdk = 36
+        versionCode = 1
+        versionName = "1.0"
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // BuildConfig fallbacks. The Secrets Gradle Plugin overrides these at build time
+        // by reading secrets.properties (gitignore) and falling back to
+        // secrets.defaults.properties (committed). Empty defaults keep the build green
+        // when a developer hasn't created secrets.properties yet.
+        buildConfigField("String", "BACKEND_BASE_URL", "\"\"")
+        buildConfigField("String", "API_KEY_GEMINI", "\"\"")
+        buildConfigField("String", "API_KEY_GMAIL", "\"\"")
+        buildConfigField("String", "API_KEY_EXTERNAL_SERVICE", "\"\"")
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+}
+
+secrets {
+    propertiesFileName = "secrets.properties"
+    defaultPropertiesFileName = "secrets.defaults.properties"
+    ignoreList.add("sdk.*")
+    ignoreList.add("keystore.*")
+}
+
+dependencies {
+    // Navigation
+    implementation(libs.androidx.navigation.compose)
+
+    // Retrofit + OkHttp (OkHttp pinned explicitly so the version is locked, and we can
+    // gate the logging interceptor to debug builds only).
+    implementation(libs.retrofit)
+    implementation(libs.converter.gson)
+    implementation(libs.okhttp)
+    debugImplementation(libs.okhttp.logging.interceptor)
+
+    // Room (ORM)
+    implementation(libs.androidx.room.runtime)
+    ksp(libs.androidx.room.room.compiler)
+    annotationProcessor(libs.androidx.room.room.compiler)
+    implementation(libs.androidx.room.ktx)
+
+
+    // Images
+    implementation(libs.coil.compose)
+
+    // Fonts
+    implementation(libs.androidx.compose.ui.text.google.fonts)
+
+    // AppCompat (required for AppCompatDelegate.setApplicationLocales back-port)
+    implementation(libs.androidx.appcompat)
+
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    testImplementation(libs.junit)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.junit)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    debugImplementation(libs.androidx.compose.ui.tooling)
+}
