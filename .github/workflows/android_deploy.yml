@@ -3,7 +3,7 @@ name: Android CI/CD - Firebase Distribution
 on:
   push:
     branches:
-      - main # O la rama que uses para tus versiones de prueba
+      - master # O la rama que uses para tus versiones de prueba
 
 jobs:
   build-and-distribute:
