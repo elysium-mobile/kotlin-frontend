@@ -29,7 +29,7 @@ jobs:
           JAVA_HOME: ${{ steps.setup-java.outputs.path }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug -Xtest
+          ./gradlew assembleDebug -x test
 
       # 4. Desplegar el APK generado a Firebase App Distribution
       - name: Upload to Firebase App Distribution
