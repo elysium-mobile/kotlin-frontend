@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "301176068632",
+    "project_id": "flow-work-af59f",
+    "storage_bucket": "flow-work-af59f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:301176068632:android:acd804b6ae6c7ba195c16d",
+        "android_client_info": {
+          "package_name": "com.elysium.softwork"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCLoyU1jwApJWIh7Kdl2XPATGEZQl0EvUM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
