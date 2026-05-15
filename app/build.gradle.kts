@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.secrets.gradle)
     id("com.google.devtools.ksp")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -84,6 +85,13 @@ dependencies {
 
     // AppCompat (required for AppCompatDelegate.setApplicationLocales back-port)
     implementation(libs.androidx.appcompat)
+
+    // Firebase BoM
+    implementation(platform(libs.firebase.bom))
+
+    // TODO: Add the dependencies for Firebase products you want to use
+    // When using the BoM, don't specify versions in Firebase dependencies
+    // https://firebase.google.com/docs/android/setup#available-libraries
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

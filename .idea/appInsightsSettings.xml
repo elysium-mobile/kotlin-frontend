@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.elysium.softwork" />
+                  <option name="mobileSdkAppId" value="1:301176068632:android:acd804b6ae6c7ba195c16d" />
+                  <option name="projectId" value="flow-work-af59f" />
+                  <option name="projectNumber" value="301176068632" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
