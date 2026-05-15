@@ -3,7 +3,7 @@ name: Android CI/CD - Firebase Distribution
 on:
   push:
     branches:
-      - master # O la rama que uses para tus versiones de prueba
+      - master
 
 jobs:
   build-and-distribute:
@@ -14,28 +14,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Configurar Java y Kotlin
+      # 2. Configurar Java 21 firmemente
       - name: Set up JDK 21
         uses: actions/setup-java@v4
+        id: setup-java
         with:
           java-version: '21'
           distribution: 'temurin'
           cache: 'gradle'
 
-      # 3. Inyectar el archivo google-services.json en el pipeline
-      # (Solo si lo añadiste al .gitignore. Si lo subiste al repo, puedes borrar este paso)
-      - name: Decode Google Services JSON
-        run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" > app/google-services.json
+      # 3. Forzar a Gradle a usar Java 21 mediante variables de entorno globales
+      - name: Build APK with Java 21 Force
+        env:
+          JAVA_HOME: ${{ steps.setup-java.outputs.path }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug -Xtest
 
-      # 4. Dar permisos de ejecución al wrapper de Gradle
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      # 5. Compilar la aplicación en modo Release o Debug
-      - name: Build APK
-        run: ./gradlew assembleDebug
-
-      # 6. Desplegar el APK generado a Firebase App Distribution
+      # 4. Desplegar el APK generado a Firebase App Distribution
       - name: Upload to Firebase App Distribution
         uses: w9jds/firebase-action@v2.2.2
         with:
