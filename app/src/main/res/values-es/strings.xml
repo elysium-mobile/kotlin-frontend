@@ -45,8 +45,11 @@
     <string name="home_user_name_placeholder">Carlos Ramos</string>
     <string name="home_mood_question">¿Cómo te sientes hoy?</string>
     <string name="home_anonymous_badge">ANÓNIMO</string>
-    <string name="home_report_incident">Reportar incidente</string>
-    <string name="home_report_incident_subtitle">100% anónimo y encriptado</string>
+    <!-- Home: antes "Reportar incidente"; ahora abre la pantalla de estado de denuncias
+         porque desde el menú principal no hay una publicación seleccionada. Crear una nueva
+         denuncia se hace desde un hilo del foro con la opción "Reportar". -->
+    <string name="home_report_incident">Mis denuncias</string>
+    <string name="home_report_incident_subtitle">Consulta el estado de tus denuncias</string>
     <string name="home_internal_forums">Foros internos</string>
     <string name="home_internal_forums_subtitle">12 conversaciones activas</string>
     <string name="home_ai_assistant">Asistente de IA</string>
@@ -121,6 +124,12 @@
     <string name="report_type_other">Otro</string>
     <string name="report_area_label">Área involucrada</string>
     <string name="report_area_placeholder">Seleccionar área…</string>
+    <string name="report_area_technology">Tecnología</string>
+    <string name="report_area_human_resources">Recursos Humanos</string>
+    <string name="report_area_operations">Operaciones</string>
+    <string name="report_area_sales">Ventas</string>
+    <string name="report_area_marketing">Marketing</string>
+    <string name="report_area_administration">Administración</string>
     <string name="report_description_label">Descripción detallada</string>
     <string name="report_description_placeholder">Describe los hechos con el mayor detalle posible. Incluye fechas, personas involucradas y evidencias disponibles…</string>
     <string name="report_date_label">Fecha aproximada</string>
@@ -130,6 +139,18 @@
     <string name="report_submit_button">Enviar denuncia cifrada</string>
     <string name="report_success">Reporte enviado con éxito</string>
     <string name="report_tracking_code_notice">Recibirás un código de seguimiento anónimo por correo cifrado</string>
+
+    <!-- Pantalla "Mis denuncias" (se abre desde la tarjeta de Home) -->
+    <string name="reports_status_title">Mis denuncias</string>
+    <string name="reports_status_subtitle">Consulta el estado de todas las denuncias que enviaste</string>
+    <string name="reports_status_empty_title">Aún no tienes denuncias</string>
+    <string name="reports_status_empty_subtitle">Cuando reportes una publicación desde un hilo del foro, aparecerá aquí para que puedas darle seguimiento.</string>
+    <string name="reports_status_filed_on">Enviado el %1$s</string>
+    <string name="reports_status_anonymous_chip">Anónima</string>
+    <string name="reports_status_pending">Pendiente</string>
+    <string name="reports_status_under_review">En revisión</string>
+    <string name="reports_status_resolved">Resuelta</string>
+    <string name="reports_status_dismissed">Desestimada</string>
 
     <!-- Protected identity screen -->
     <string name="protected_identity_title">Identidad protegida</string>

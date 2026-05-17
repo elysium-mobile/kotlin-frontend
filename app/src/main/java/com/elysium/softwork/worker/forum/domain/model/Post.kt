@@ -17,7 +17,7 @@ import com.google.gson.annotations.SerializedName
  * @property isAnonymous when true the UI replaces the author block with the Anonymous badge.
  * @property title post title, shown in the feed and at the top of the thread detail.
  * @property content post body.
- * @property category one of [com.elysium.softwork.worker.forum.application.ForumCategory] keys.
+ * @property category one of [com.elysium.softwork.shared.utils.values.ForumCategory] keys.
  * @property timestamp epoch millis when the server accepted the post.
  * @property repliesCount cached reply count surfaced in the feed footer.
  */

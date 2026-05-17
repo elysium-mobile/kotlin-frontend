@@ -1,29 +1,22 @@
 package com.elysium.softwork.iam.application
 
+import com.elysium.softwork.shared.utils.constants.Domains
+import com.elysium.softwork.shared.utils.constants.Regexes
+
 /**
  * Pure validation helpers for IAM forms. Kept as top-level functions (no Android imports) so
  * they can be unit-tested on the JVM without instrumentation.
+ *
+ * Regex patterns and domain allow/deny lists are pulled from [Regexes] / [Domains] in
+ * `shared/utils/constants/` rather than defined inline, so other validators (e.g. a future
+ * incident-report email field) can reuse the same canonical sources.
  */
 object AuthValidation {
 
     private const val MIN_PASSWORD_LENGTH: Int = 8
 
-    private val EMAIL_REGEX: Regex = Regex(
-        pattern = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$",
-    )
-
-    /**
-     * Personal email providers that are NOT considered corporate. Used to drive the
-     * "Verified domain" indicator on the register screen — anything outside this list with a
-     * structurally valid email is treated as corporate.
-     */
-    private val PERSONAL_DOMAINS: Set<String> = setOf(
-        "gmail.com", "googlemail.com", "yahoo.com", "yahoo.es", "hotmail.com", "outlook.com",
-        "live.com", "icloud.com", "me.com", "aol.com", "proton.me", "protonmail.com",
-    )
-
     /** True when [email] has a syntactically valid form. */
-    fun isEmailValid(email: String): Boolean = EMAIL_REGEX.matches(email.trim())
+    fun isEmailValid(email: String): Boolean = Regexes.EMAIL.matches(email.trim())
 
     /**
      * True when [email] is structurally valid AND its domain is not in the personal-provider
@@ -32,7 +25,7 @@ object AuthValidation {
     fun isCorporateDomain(email: String): Boolean {
         if (!isEmailValid(email)) return false
         val domain: String = email.substringAfter('@').lowercase().trim()
-        return domain.isNotEmpty() && domain !in PERSONAL_DOMAINS
+        return domain.isNotEmpty() && domain !in Domains.PERSONAL
     }
 
     /** True when [password] meets the minimum length requirement. */

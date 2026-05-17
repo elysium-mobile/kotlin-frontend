@@ -13,32 +13,15 @@ import com.elysium.softwork.iam.presentation.views.login.LoginScreen
 import com.elysium.softwork.iam.presentation.views.register.RegisterGoogleScreen
 import com.elysium.softwork.iam.presentation.views.register.RegisterScreen
 import com.elysium.softwork.iam.presentation.views.success.AuthSuccessScreen
-
-/**
- * Route definitions for the IAM bounded context. Centralized as constants so navigation
- * call sites are typo-safe and refactor-friendly.
- */
-object AuthRoutes {
-    const val LOGIN: String = "auth/login"
-    const val REGISTER: String = "auth/register"
-    const val REGISTER_GOOGLE: String = "auth/register-google"
-
-    /** Success route accepts a kind discriminator: [SuccessKind.LOGIN] or [SuccessKind.REGISTER]. */
-    private const val SUCCESS_BASE: String = "auth/success"
-    const val SUCCESS_ARG_KIND: String = "kind"
-    const val SUCCESS: String = "$SUCCESS_BASE/{$SUCCESS_ARG_KIND}"
-
-    /** Builds a concrete route for the success screen. */
-    fun success(kind: SuccessKind): String = "$SUCCESS_BASE/${kind.name}"
-}
-
-/** Discriminator for the [AuthSuccessScreen] copy slots. */
-enum class SuccessKind { LOGIN, REGISTER }
+import com.elysium.softwork.shared.utils.discriminators.SuccessKind
 
 /**
  * IAM nav host. Designed to be embedded inside a future root nav graph but works stand-alone
  * for Phase 2 — `MainActivity` calls [AuthNavHost] directly until additional contexts (forum,
  * feedback) come online.
+ *
+ * Route catalog lives in [AuthRoutes]; the [SuccessKind] discriminator that drives the
+ * `auth/success/{kind}` nav-arg lives in `shared/utils/discriminators/`.
  *
  * @param onAuthComplete invoked when the user reaches the success screen and taps the
  *   primary button. The hosting graph routes to the main app shell from here.

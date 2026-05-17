@@ -24,7 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.elysium.softwork.R
-import com.elysium.softwork.shared.presentation.components.ButtonVariant
+import com.elysium.softwork.shared.utils.discriminators.ButtonVariant
 import com.elysium.softwork.shared.presentation.components.SoftWorkButton
 import com.elysium.softwork.shared.presentation.theme.PrimaryNavy
 import com.elysium.softwork.shared.presentation.theme.Success

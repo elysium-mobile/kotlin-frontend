@@ -1,12 +1,14 @@
-package com.elysium.softwork.worker.forum.application
+package com.elysium.softwork.shared.utils.values
 
 import androidx.annotation.StringRes
 import com.elysium.softwork.R
 
 /**
- * Wire keys for the four forum categories shipped in Phase 4. The [key] is what travels in
- * [com.elysium.softwork.worker.forum.domain.model.Post.category] and gets persisted to Room; the
- * [labelRes] is the localized chip label rendered in the UI.
+ * Wire keys for the four forum categories.
+ *
+ * **Category — value-bearing enum.** The [key] is what travels in
+ * `com.elysium.softwork.worker.forum.domain.model.Post.category` and gets persisted to Room;
+ * the [labelRes] is the localized chip label rendered in the UI.
  *
  * Adding a new category means adding an entry here AND providing two new strings (en/es).
  * The default stays open (no `default()`), since the team will likely add categories without

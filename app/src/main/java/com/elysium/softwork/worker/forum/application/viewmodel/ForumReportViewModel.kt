@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.elysium.softwork.SoftWorkApplication
+import com.elysium.softwork.shared.utils.values.ReportArea
+import com.elysium.softwork.shared.utils.values.ReportType
 import com.elysium.softwork.worker.forum.domain.ForumReportStore
 import com.elysium.softwork.worker.forum.domain.model.ForumReport
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,11 +43,17 @@ class ForumReportViewModel(
     private val _state = MutableStateFlow(ReportFormState())
     val state: StateFlow<ReportFormState> = _state.asStateFlow()
 
-    /** Predefined areas for the report dropdown. */
-    val areas = listOf("Tecnología", "Recursos Humanos", "Operaciones", "Ventas", "Marketing", "Administración")
+    /**
+     * Areas selectable in the dropdown. Each entry pairs a locale-independent wire [key]
+     * with a localized [labelRes] — the screen renders the label via `stringResource` and
+     * persists the key in [ReportFormState.area].
+     */
+    val areas: List<ReportArea> = ReportArea.entries
 
-    /** Predefined types of irregularities. */
-    val reportTypes = listOf("Acoso", "Discriminación", "Seguridad", "Ética", "Otro")
+    /**
+     * Irregularity types selectable in the chip grid. Same key/labelRes contract as [areas].
+     */
+    val reportTypes: List<ReportType> = ReportType.entries
 
     fun onTypeSelected(type: String) {
         _state.value = _state.value.copy(type = type)

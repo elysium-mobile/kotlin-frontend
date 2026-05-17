@@ -19,7 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.elysium.softwork.R
-import com.elysium.softwork.worker.forum.application.ForumCategory
+import com.elysium.softwork.shared.utils.values.ForumCategory
 import com.elysium.softwork.shared.presentation.theme.AccentDark
 import com.elysium.softwork.shared.presentation.theme.AccentMint
 import com.elysium.softwork.shared.presentation.theme.PrimarySky

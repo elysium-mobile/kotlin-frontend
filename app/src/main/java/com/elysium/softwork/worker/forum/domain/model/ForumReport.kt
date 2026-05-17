@@ -8,11 +8,17 @@ import com.google.gson.annotations.SerializedName
  *
  * @property id identifier assigned by the server.
  * @property postId identifier of the post being reported.
- * @property type type of irregularity (e.g., "Acoso", "Discriminación").
- * @property area involved area or department.
+ * @property type irregularity-type wire key. One of
+ *   `com.elysium.softwork.shared.utils.values.ReportType.key`.
+ * @property area area-wire key. One of `com.elysium.softwork.shared.utils.values.ReportArea.key`.
  * @property description detailed explanation of the report.
  * @property date approximate date of the incident.
  * @property isAnonymous whether the report is sent anonymously.
+ * @property status current lifecycle wire key. One of
+ *   `com.elysium.softwork.shared.utils.values.ReportStatus.key`. Only populated on the
+ *   response of the list endpoint — the request body leaves it `null`.
+ * @property createdAt epoch millis when the server first accepted the report. Used by the
+ *   status screen to render the submission date.
  */
 data class ForumReport(
     @SerializedName("id") val id: String? = null,
@@ -21,5 +27,7 @@ data class ForumReport(
     @SerializedName("area") val area: String? = null,
     @SerializedName("description") val description: String? = null,
     @SerializedName("date") val date: String? = null,
-    @SerializedName("isAnonymous") val isAnonymous: Boolean = true
+    @SerializedName("isAnonymous") val isAnonymous: Boolean = true,
+    @SerializedName("status") val status: String? = null,
+    @SerializedName("createdAt") val createdAt: Long? = null,
 )

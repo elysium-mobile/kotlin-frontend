@@ -45,8 +45,11 @@
     <string name="home_user_name_placeholder">Carlos Ramos</string>
     <string name="home_mood_question">How are you feeling today?</string>
     <string name="home_anonymous_badge">ANONYMOUS</string>
-    <string name="home_report_incident">Report incident</string>
-    <string name="home_report_incident_subtitle">100% anonymous and encrypted</string>
+    <!-- Home: was "Report incident" before Phase 4.1; now opens the reports-status screen
+         because there's no post selected from the home menu. Filing a new report still
+         happens from a forum thread via the per-post "Report" affordance. -->
+    <string name="home_report_incident">My reports</string>
+    <string name="home_report_incident_subtitle">Track the status of your reports</string>
     <string name="home_internal_forums">Internal forums</string>
     <string name="home_internal_forums_subtitle">12 active conversations</string>
     <string name="home_ai_assistant">AI Assistant</string>
@@ -121,6 +124,12 @@
     <string name="report_type_other">Other</string>
     <string name="report_area_label">Involved area</string>
     <string name="report_area_placeholder">Select area…</string>
+    <string name="report_area_technology">Technology</string>
+    <string name="report_area_human_resources">Human Resources</string>
+    <string name="report_area_operations">Operations</string>
+    <string name="report_area_sales">Sales</string>
+    <string name="report_area_marketing">Marketing</string>
+    <string name="report_area_administration">Administration</string>
     <string name="report_description_label">Detailed description</string>
     <string name="report_description_placeholder">Describe the facts in as much detail as possible. Include dates, people involved and available evidence…</string>
     <string name="report_date_label">Approximate date</string>
@@ -130,6 +139,18 @@
     <string name="report_submit_button">Send encrypted report</string>
     <string name="report_success">Report sent successfully</string>
     <string name="report_tracking_code_notice">You will receive an anonymous tracking code by encrypted email</string>
+
+    <!-- Reports status screen (opened from the Home "My reports" card) -->
+    <string name="reports_status_title">My reports</string>
+    <string name="reports_status_subtitle">Track the status of every report you\'ve submitted</string>
+    <string name="reports_status_empty_title">No reports yet</string>
+    <string name="reports_status_empty_subtitle">When you report a post from a forum thread, it will appear here so you can follow up.</string>
+    <string name="reports_status_filed_on">Submitted on %1$s</string>
+    <string name="reports_status_anonymous_chip">Anonymous</string>
+    <string name="reports_status_pending">Pending</string>
+    <string name="reports_status_under_review">Under review</string>
+    <string name="reports_status_resolved">Resolved</string>
+    <string name="reports_status_dismissed">Dismissed</string>
 
     <!-- Protected identity screen -->
     <string name="protected_identity_title">Protected identity</string>

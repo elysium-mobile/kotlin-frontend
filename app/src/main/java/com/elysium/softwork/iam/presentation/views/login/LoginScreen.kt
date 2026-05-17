@@ -34,7 +34,7 @@ import com.elysium.softwork.iam.application.AuthState
 import com.elysium.softwork.iam.application.viewmodel.AuthViewModel
 import com.elysium.softwork.iam.presentation.components.GoogleOutlineButton
 import com.elysium.softwork.iam.presentation.components.PasswordVisibilityToggle
-import com.elysium.softwork.shared.presentation.components.ButtonVariant
+import com.elysium.softwork.shared.utils.discriminators.ButtonVariant
 import com.elysium.softwork.shared.presentation.components.SoftWorkButton
 import com.elysium.softwork.shared.presentation.components.SoftWorkTextField
 import com.elysium.softwork.shared.presentation.theme.AccentDark

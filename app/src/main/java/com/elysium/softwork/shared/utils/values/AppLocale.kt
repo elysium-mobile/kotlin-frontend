@@ -1,7 +1,10 @@
-package com.elysium.softwork.shared.domain.i18n
+package com.elysium.softwork.shared.utils.values
 
 /**
  * Languages explicitly supported by the SoftWork Employee client.
+ *
+ * **Category — value-bearing enum.** Each entry pairs the enum constant with a stable
+ * BCP-47 [tag] consumed by `LocaleListCompat.forLanguageTags(...)`.
  *
  * - [SYSTEM] follows the device language and falls back to English when the active locale has
  *   no translation. Encoded as a `null` [tag] so the AppCompat / `LocaleManager` layer treats

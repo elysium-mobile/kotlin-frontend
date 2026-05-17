@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.elysium.softwork.SoftWorkApplication
-import com.elysium.softwork.worker.forum.application.ForumCategory
+import com.elysium.softwork.shared.utils.values.ForumCategory
 import com.elysium.softwork.worker.forum.data.store.PostStore
 import com.elysium.softwork.shared.data.local.SharedPrefsManager
 import kotlinx.coroutines.flow.MutableStateFlow

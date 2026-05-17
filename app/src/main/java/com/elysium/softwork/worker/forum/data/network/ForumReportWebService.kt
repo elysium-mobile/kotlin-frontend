@@ -3,6 +3,7 @@ package com.elysium.softwork.worker.forum.data.network
 import com.elysium.softwork.worker.forum.domain.model.ForumReport
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.POST
 
 /**
@@ -17,4 +18,11 @@ interface ForumReportWebService {
      */
     @POST("forum/reports")
     suspend fun submitReport(@Body report: ForumReport): Response<ForumReport>
+
+    /**
+     * Returns the authenticated user's submitted reports with their current status. Used by
+     * the home "report status" entry point.
+     */
+    @GET("forum/reports")
+    suspend fun listReports(): Response<List<ForumReport>>
 }

@@ -2,6 +2,7 @@ package com.elysium.softwork.shared.domain.i18n
 
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
+import com.elysium.softwork.shared.utils.values.AppLocale
 
 /**
  * Runtime language switcher for the SoftWork Employee client.

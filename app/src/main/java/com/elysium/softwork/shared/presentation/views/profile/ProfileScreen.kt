@@ -31,7 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.elysium.softwork.R
-import com.elysium.softwork.shared.domain.i18n.AppLocale
+import com.elysium.softwork.shared.utils.values.AppLocale
 import com.elysium.softwork.shared.domain.i18n.LocaleHelper
 import com.elysium.softwork.shared.presentation.components.InitialsAvatar
 import com.elysium.softwork.shared.presentation.components.SoftWorkCard

@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elysium.softwork.R
-import com.elysium.softwork.worker.forum.application.ForumCategory
+import com.elysium.softwork.shared.utils.values.ForumCategory
 import com.elysium.softwork.worker.forum.application.viewmodel.NewPostViewModel
 import com.elysium.softwork.worker.forum.presentation.components.Chip
 import com.elysium.softwork.shared.presentation.components.InitialsAvatar

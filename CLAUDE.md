@@ -120,6 +120,69 @@ each context's WebService, each context's Store). ViewModels receive their `Stor
 `ViewModelProvider.Factory` exposed on the ViewModel companion (see `AuthViewModel.Factory`).
 Composables resolve the ViewModel with `viewModel(factory = AuthViewModel.Factory)`.
 
+### Shared Utilities Layout (`shared/utils/`) and Route Catalogs
+
+To keep cross-cutting primitives in one predictable place — and to avoid every bounded
+context shipping its own enum scattered across `application/` and `domain/model/` — **all
+enums live in [`shared/utils/`](app/src/main/java/com/elysium/softwork/shared/utils)**,
+split into two subpackages by purpose:
+
+- **[`shared/utils/values/`](app/src/main/java/com/elysium/softwork/shared/utils/values)** —
+  **value-bearing enums.** Each entry pairs the constant with a stable wire `key` (and
+  often a `@StringRes labelRes` for localized labels). These are the enums you reach for
+  when you need a closed set of options serialized to/from the backend and rendered to
+  the user.
+  - `AppLocale` (`tag`), `ForumCategory` / `ReportType` / `ReportArea` (`key` + `labelRes`),
+    `ReportStatus` (`key`).
+  - Pattern:
+    ```kotlin
+    enum class ForumCategory(val key: String, @param:StringRes val labelRes: Int) {
+        SUGGESTIONS("suggestions", R.string.forum_category_suggestions),
+        /* ... */ ;
+        companion object {
+            fun fromKey(key: String?): ForumCategory? = entries.firstOrNull { it.key == key }
+        }
+    }
+    ```
+
+- **[`shared/utils/discriminators/`](app/src/main/java/com/elysium/softwork/shared/utils/discriminators)** —
+  **discriminator enums.** Pure sum types with no payload; they exist only to drive a
+  `when` branch in a composable or nav graph.
+  - `ButtonVariant { EMPLOYEE, HR }`, `SuccessKind { LOGIN, REGISTER }`.
+
+- **[`shared/utils/constants/`](app/src/main/java/com/elysium/softwork/shared/utils/constants)** —
+  **process-wide value catalogs that aren't enums.** One `object` per category, exposing
+  named `val`s. Examples:
+  - `Regexes.EMAIL` — the loose RFC 5322 surrogate used by every email validator.
+  - `Domains.PERSONAL` — personal-provider domains that fail the "corporate email" check.
+  - Pattern:
+    ```kotlin
+    object Regexes {
+        val EMAIL: Regex = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
+    }
+    ```
+
+**Adding a new enum or constant?** Decide first:
+- Carries a value (key/label)? → enum in `values/`.
+- Pure marker? → enum in `discriminators/`.
+- Reusable literal (regex, set, lookup table)? → `object` in `constants/`.
+
+Don't create context-local enums in `application/` or `domain/model/`, and don't inline
+regex/domain literals inside a validator — promote them here so the catalog stays canonical.
+
+**Route catalogs live next to their `NavGraphBuilder`, but in their own file.** Each
+navigation folder has both `XNavigation.kt` (the `NavHost` / `NavGraphBuilder` wiring)
+and `XRoutes.kt` (the `object` of `const val` strings + route builders):
+
+- [`iam/presentation/navigation/AuthRoutes.kt`](app/src/main/java/com/elysium/softwork/iam/presentation/navigation/AuthRoutes.kt) + `AuthNavigation.kt`
+- [`worker/forum/presentation/navigation/ForumRoutes.kt`](app/src/main/java/com/elysium/softwork/worker/forum/presentation/navigation/ForumRoutes.kt) + `ForumNavigation.kt`
+- [`shared/presentation/navigation/MainRoutes.kt`](app/src/main/java/com/elysium/softwork/shared/presentation/navigation/MainRoutes.kt) + `MainNavigation.kt`
+
+This split lets any composable or other navigation host import the route catalog without
+pulling in the `NavGraphBuilder` extension. Cross-context destinations (e.g. the Foro
+bottom tab pointing at `ForumRoutes.FEED`) become single-import references with no
+incidental coupling to the foreign graph's wiring.
+
 ---
 
 ## UI Conventions

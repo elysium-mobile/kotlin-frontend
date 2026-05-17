@@ -49,19 +49,6 @@ private data class BottomDestination(
     val contentDescriptionRes: Int,
 )
 
-/**
- * Routes for the authenticated shell. The Forum tab points at [ForumRoutes.FEED] so the
- * forum's nested back stack participates in the shared NavHost.
- */
-object MainRoutes {
-    const val HOME: String = "main/home"
-    const val PROFILE: String = "main/profile"
-    const val NOTIFICATIONS: String = "main/notifications"
-    const val PROTECTED_IDENTITY: String = "main/protected-identity"
-    const val SURVEYS: String = "main/surveys"
-    const val MEMBERSHIP: String = "main/membership"
-}
-
 private val BottomDestinations: List<BottomDestination> = listOf(
     BottomDestination(MainRoutes.HOME, R.string.nav_home, R.drawable.ic_home, R.string.cd_home),
     BottomDestination(MainRoutes.PROFILE, R.string.nav_profile, R.drawable.ic_person, R.string.cd_user_icon),
@@ -98,9 +85,12 @@ fun MainNavHost(
             composable(MainRoutes.HOME) {
                 HomeScreen(
                     userName = userName,
-                    onReportIncident = { 
-                        // Redirigir al Reporte de Foro (usando un ID genérico para este punto de entrada)
-                        navController.navigate(ForumRoutes.report("general_incident")) 
+                    onReportIncident = {
+                        // Home doesn't have a post selected, so filing a new report from
+                        // here doesn't fit the post-scoped ForumReportScreen contract.
+                        // Instead, we surface the read-only status list — users file new
+                        // reports from a thread via the per-post "Report" affordance.
+                        navController.navigate(ForumRoutes.REPORTS_STATUS)
                     },
                     onOpenForums = { navController.navigateToTab(ForumRoutes.FEED) },
                     onOpenAssistant = { /* Phase 6: AI assistant not yet implemented. */ },

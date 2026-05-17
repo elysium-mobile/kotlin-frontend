@@ -50,6 +50,8 @@ import com.elysium.softwork.shared.presentation.theme.AccentWhite
 import com.elysium.softwork.shared.presentation.theme.Danger
 import com.elysium.softwork.shared.presentation.theme.PrimaryNavy
 import com.elysium.softwork.shared.presentation.theme.PrimaryTeal
+import com.elysium.softwork.shared.utils.values.ReportArea
+import com.elysium.softwork.shared.utils.values.ReportType
 import com.elysium.softwork.worker.forum.application.viewmodel.ForumReportViewModel
 import com.elysium.softwork.worker.forum.presentation.components.Chip
 
@@ -218,53 +220,58 @@ private fun SectionLabel(text: String) {
     )
 }
 
+/**
+ * Two-row chip grid for selecting a [ReportType]. The chip label is localized via
+ * `stringResource(type.labelRes)`; the wire [ReportType.key] is what flows into
+ * [ForumReportViewModel.ReportFormState.type].
+ */
 @Composable
 private fun ReportTypeChips(
     selectedType: String,
     onTypeSelected: (String) -> Unit,
-    types: List<String>
+    types: List<ReportType>
 ) {
-    val typeLabels = mapOf(
-        "Acoso" to stringResource(R.string.report_type_harassment),
-        "Discriminación" to stringResource(R.string.report_type_discrimination),
-        "Seguridad" to stringResource(R.string.report_type_security),
-        "Ética" to stringResource(R.string.report_type_ethics),
-        "Otro" to stringResource(R.string.report_type_other)
-    )
-
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             types.take(4).forEach { type ->
                 Chip(
-                    label = typeLabels[type] ?: type,
-                    selected = selectedType == type,
-                    onClick = { onTypeSelected(type) }
+                    label = stringResource(type.labelRes),
+                    selected = selectedType == type.key,
+                    onClick = { onTypeSelected(type.key) }
                 )
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             types.drop(4).forEach { type ->
                 Chip(
-                    label = typeLabels[type] ?: type,
-                    selected = selectedType == type,
-                    onClick = { onTypeSelected(type) }
+                    label = stringResource(type.labelRes),
+                    selected = selectedType == type.key,
+                    onClick = { onTypeSelected(type.key) }
                 )
             }
         }
     }
 }
 
+/**
+ * Dropdown for selecting a [ReportArea]. The TextField renders the localized label of the
+ * selected area; the wire [ReportArea.key] is what flows into
+ * [ForumReportViewModel.ReportFormState.area].
+ */
 @Composable
 private fun AreaDropdown(
     selectedArea: String,
     onAreaSelected: (String) -> Unit,
-    areas: List<String>
+    areas: List<ReportArea>
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val selectedLabel: String = ReportArea.fromKey(selectedArea)
+        ?.let { stringResource(it.labelRes) }
+        .orEmpty()
 
     Box {
         SoftWorkTextField(
-            value = selectedArea,
+            value = selectedLabel,
             onValueChange = {},
             placeholder = stringResource(R.string.report_area_placeholder),
             trailingIcon = {
@@ -293,9 +300,9 @@ private fun AreaDropdown(
         ) {
             areas.forEach { area ->
                 DropdownMenuItem(
-                    text = { Text(area) },
+                    text = { Text(stringResource(area.labelRes)) },
                     onClick = {
-                        onAreaSelected(area)
+                        onAreaSelected(area.key)
                         expanded = false
                     }
                 )

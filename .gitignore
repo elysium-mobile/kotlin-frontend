@@ -13,6 +13,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+settings.local.json
 
 # Local secrets — never commit. secrets.defaults.properties IS committed.
 secrets.properties

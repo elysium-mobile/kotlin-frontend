@@ -23,16 +23,7 @@ import androidx.compose.ui.unit.dp
 import com.elysium.softwork.shared.presentation.theme.PrimaryNavy
 import com.elysium.softwork.shared.presentation.theme.PrimarySky
 import com.elysium.softwork.shared.presentation.theme.PrimaryTeal
-
-/**
- * Visual variant of [SoftWorkButton].
- *
- * - [EMPLOYEE] — sky-to-teal horizontal gradient. Default. Used for all Employee-facing
- *   primary actions (sign in, submit check-in, post to forum, etc.).
- * - [HR] — solid [PrimaryNavy]. Reserved for HR-themed primary actions surfaced to the
- *   Employee (e.g. responding to an HR-initiated request).
- */
-enum class ButtonVariant { EMPLOYEE, HR }
+import com.elysium.softwork.shared.utils.discriminators.ButtonVariant
 
 /**
  * Brand primary button used across SoftWork screens.

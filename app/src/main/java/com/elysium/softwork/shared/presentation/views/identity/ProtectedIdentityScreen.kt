@@ -37,7 +37,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elysium.softwork.R
 import com.elysium.softwork.shared.application.AnonymityViewModel
 import com.elysium.softwork.shared.domain.identity.AnonymityPreferences
-import com.elysium.softwork.shared.presentation.components.ButtonVariant
+import com.elysium.softwork.shared.utils.discriminators.ButtonVariant
 import com.elysium.softwork.shared.presentation.components.SoftWorkButton
 import com.elysium.softwork.shared.presentation.components.SoftWorkCard
 import com.elysium.softwork.shared.presentation.theme.AccentDark
