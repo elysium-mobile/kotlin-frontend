@@ -483,7 +483,84 @@ Token state survives process death (`SharedPrefsManager` is real). To force the 
 again without logging out, uninstall + reinstall, or call `clearSession()` from a debug
 hook.
 
-### 🔜 Next — Phase 5
+### ✅ Phase 5 (in progress) — Feedback bounded context
+
+- **Domain**: [`Survey`](app/src/main/java/com/elysium/softwork/feedback/domain/model/Survey.kt)
+  data class with `id` / `title` / `description`, annotated with `@SerializedName` per the
+  bean shortcut so it doubles as the future wire bean.
+- **Data**: `SurveyStore` interface in `feedback/data/store/` + mocked `SurveyStoreImpl`
+  that emits a static two-entry catalogue (Clima laboral, Productividad) resolved through
+  Android string resources. Returns `Flow<List<Survey>>` so the contract survives the
+  swap to Retrofit. Replace this mock with a real `SurveyWebService` once `/surveys`
+  exists.
+- **Application**: `PendingSurveysViewModel` exposes `surveys: StateFlow<List<Survey>>`,
+  subscribes to the store on `init`, and follows the standard `Factory` companion pattern
+  that pulls `surveyStore` from `ServiceLocator` via `CreationExtras`.
+- **Presentation**: `PendingSurveysScreen` under `feedback/presentation/views/surveys/` —
+  AccentWhite background, header (back arrow + "Encuestas pendientes" title in PrimaryNavy
+  bold 20.sp), LazyColumn of `SoftWorkCard` items. Each card shows title (PrimaryNavy
+  SemiBold 15.sp), description (AccentDark 14.sp), a 0.5.dp `HorizontalDivider`, and a
+  full-width `SoftWorkButton` (EMPLOYEE variant — the PrimarySky→PrimaryTeal gradient,
+  closest to the requested "PrimarySky" call-to-action).
+- **Navigation**: `FeedbackRoutes.PENDING_SURVEYS = "feedback/pending_surveys"` and
+  `NavGraphBuilder.feedbackGraph(navController)`. Wired into `MainNavHost` (the placeholder
+  block previously bound to `MainRoutes.SURVEYS` was replaced by `feedbackGraph(...)`); the
+  Home action card's `onOpenSurveys` now routes to `FeedbackRoutes.PENDING_SURVEYS`. The
+  legacy `MainRoutes.SURVEYS` constant + its `placeholder_surveys_*` strings are now dead
+  and can be pruned in a follow-up cleanup.
+- **Wiring**: `ServiceLocator` gains `val surveyStore: SurveyStore` initialized with
+  `SurveyStoreImpl(context.applicationContext)`.
+- **i18n**: new keys `surveys_title`, `survey_start_button`, `survey_climate_title`,
+  `survey_climate_desc`, `survey_productivity_title`, `survey_productivity_desc` added to
+  both `values/strings.xml` and `values-es/strings.xml`.
+
+### ✅ Phase 6 (in progress) — Notifications bounded context
+
+- **Domain**: [`Notification`](app/src/main/java/com/elysium/softwork/notifications/domain/model/Notification.kt)
+  data class (`id` / `type` / `title` / `description` / `isRead`) annotated with
+  `@SerializedName` per the bean shortcut. The category discriminator lives in
+  [`NotificationType`](app/src/main/java/com/elysium/softwork/shared/utils/values/NotificationType.kt)
+  under `shared/utils/values/` (carries a stable wire `key`, no `labelRes` because the
+  list renders the per-item `title` instead of the category name).
+- **Data**: `NotificationStore` interface in `notifications/data/store/` + mocked
+  `NotificationStoreImpl` emitting a static four-entry catalogue — one notification per
+  `NotificationType` — resolved through Android string resources. Returns
+  `Flow<List<Notification>>` so the contract survives the swap to Retrofit.
+- **Application**: `NotificationsViewModel` exposes
+  `notifications: StateFlow<List<Notification>>`, subscribes to the store on `init`, and
+  follows the standard `Factory` companion pattern that pulls `notificationStore` from
+  `ServiceLocator` via `CreationExtras`.
+- **Presentation**: `NotificationsScreen` under `notifications/presentation/views/feed/`.
+  **Vibrant deviation from the plain mockup**: each card is themed by `NotificationType`
+  via a private `NotificationTheme` value object (per-type background tint + foreground
+  color + leading icon). Mapping:
+  - `SURVEY` → `AccentMint` / `PrimaryTeal` / `ic_check_circle`
+  - `PAYMENT` → soft warning surface `#FFF9F0` / `Warning` / `ic_flag`
+  - `FORUM` → soft sky surface `#F0F8FF` / `PrimarySky` / `ic_forum`
+  - `MESSAGE` → soft navy surface `#F0F4F8` / `PrimaryNavy` / `ic_send`
+
+  Layout: leading 40.dp circular icon, center column (title 15.sp SemiBold in the
+  category foreground + description 14.sp AccentDark), trailing `ic_chevron_right`
+  tinted `PrimarySky`. The three "soft surface" tints are intentionally declared inline
+  in the screen file — they only exist for this screen, so promoting them to `Color.kt`
+  would falsely suggest a broader semantic contract.
+- **Navigation**: `NotificationRoutes.NOTIFICATIONS_FEED = "notifications/feed"` +
+  `NavGraphBuilder.notificationGraph(navController)`. `MainNavHost` now points the
+  fourth bottom tab (`BottomDestinations`) at `NotificationRoutes.NOTIFICATIONS_FEED`
+  and hosts `notificationGraph(...)`. The old `MainRoutes.NOTIFICATIONS` placeholder
+  block + its `placeholder_notifications_*` strings are now dead and can be pruned in
+  a follow-up cleanup (the legacy `MainRoutes.NOTIFICATIONS` constant is still defined
+  but no longer wired).
+- **Wiring**: `ServiceLocator` gains `val notificationStore: NotificationStore`
+  initialized with `NotificationStoreImpl(context.applicationContext)`.
+- **i18n**: new keys `notifications_title`, `notif_survey_title`, `notif_survey_desc`,
+  `notif_payment_title`, `notif_payment_desc`, `notif_forum_title`, `notif_forum_desc`,
+  `notif_message_title`, `notif_message_desc` added to both locales.
+- **Icons**: no new drawables added — the screen reuses the existing
+  `ic_check_circle`, `ic_flag`, `ic_forum`, `ic_send`, `ic_chevron_right` set. Swap in
+  dedicated glyphs (e.g. `ic_money`, `ic_mail`) when the brand library expands.
+
+### 🔜 Next — Phase (IMPLEMENTATION WITH REAL BACKEND API)
 
 - Comment domain + store + WebService backing `ThreadScreen`.
 - Image / attachment picker for the new-post composer.

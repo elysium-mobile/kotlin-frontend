@@ -31,6 +31,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.elysium.softwork.R
+import com.elysium.softwork.feedback.presentation.navigation.FeedbackRoutes
+import com.elysium.softwork.feedback.presentation.navigation.feedbackGraph
+import com.elysium.softwork.notifications.presentation.navigation.NotificationRoutes
+import com.elysium.softwork.notifications.presentation.navigation.notificationGraph
 import com.elysium.softwork.worker.forum.presentation.navigation.ForumRoutes
 import com.elysium.softwork.worker.forum.presentation.navigation.forumGraph
 import com.elysium.softwork.shared.presentation.views.home.HomeScreen
@@ -53,7 +57,7 @@ private val BottomDestinations: List<BottomDestination> = listOf(
     BottomDestination(MainRoutes.HOME, R.string.nav_home, R.drawable.ic_home, R.string.cd_home),
     BottomDestination(MainRoutes.PROFILE, R.string.nav_profile, R.drawable.ic_person, R.string.cd_user_icon),
     BottomDestination(ForumRoutes.FEED, R.string.nav_forum, R.drawable.ic_forum, R.string.cd_forum),
-    BottomDestination(MainRoutes.NOTIFICATIONS, R.string.nav_notifications, R.drawable.ic_notifications, R.string.cd_notifications),
+    BottomDestination(NotificationRoutes.NOTIFICATIONS_FEED, R.string.nav_notifications, R.drawable.ic_notifications, R.string.cd_notifications),
 )
 
 /**
@@ -94,7 +98,7 @@ fun MainNavHost(
                     },
                     onOpenForums = { navController.navigateToTab(ForumRoutes.FEED) },
                     onOpenAssistant = { /* Phase 6: AI assistant not yet implemented. */ },
-                    onOpenSurveys = { navController.navigate(MainRoutes.SURVEYS) },
+                    onOpenSurveys = { navController.navigate(FeedbackRoutes.PENDING_SURVEYS) },
                     onOpenMembership = { navController.navigate(MainRoutes.MEMBERSHIP) },
                 )
             }
@@ -114,12 +118,7 @@ fun MainNavHost(
                     onSaved = { navController.popBackStack() },
                 )
             }
-            composable(MainRoutes.SURVEYS) {
-                PlaceholderScreen(
-                    title = stringResource(R.string.placeholder_surveys_title),
-                    subtitle = stringResource(R.string.placeholder_surveys_subtitle),
-                )
-            }
+            feedbackGraph(navController = navController)
             composable(MainRoutes.MEMBERSHIP) {
                 PlaceholderScreen(
                     title = stringResource(R.string.placeholder_membership_title),
@@ -127,12 +126,7 @@ fun MainNavHost(
                 )
             }
             forumGraph(navController = navController, userName = userName)
-            composable(MainRoutes.NOTIFICATIONS) {
-                PlaceholderScreen(
-                    title = stringResource(R.string.placeholder_notifications_title),
-                    subtitle = stringResource(R.string.placeholder_notifications_subtitle),
-                )
-            }
+            notificationGraph(navController = navController)
         }
     }
 }

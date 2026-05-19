@@ -187,4 +187,23 @@
     <string name="cd_paperclip">Attachment</string>
     <string name="cd_image">Add image</string>
     <string name="cd_new_post">New post</string>
+
+    <!-- Notifications -->
+    <string name="notifications_title">Notifications</string>
+    <string name="notif_survey_title">New survey</string>
+    <string name="notif_survey_desc">You have a new pending survey</string>
+    <string name="notif_payment_title">Payments</string>
+    <string name="notif_payment_desc">Your plan will expire soon</string>
+    <string name="notif_forum_title">Forum</string>
+    <string name="notif_forum_desc">You have a new reply</string>
+    <string name="notif_message_title">Message</string>
+    <string name="notif_message_desc">You have a new message from HR</string>
+
+    <!-- Feedback: pending surveys -->
+    <string name="surveys_title">Pending surveys</string>
+    <string name="survey_start_button">Start</string>
+    <string name="survey_climate_title">Workplace climate</string>
+    <string name="survey_climate_desc">Share how you feel about your team and environment.</string>
+    <string name="survey_productivity_title">Productivity</string>
+    <string name="survey_productivity_desc">Help us understand how to make your workflow better.</string>
 </resources>

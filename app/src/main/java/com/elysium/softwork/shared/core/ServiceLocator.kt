@@ -13,6 +13,10 @@ import com.elysium.softwork.shared.data.network.ApiClient
 import com.elysium.softwork.worker.forum.data.network.ForumReportWebService
 import com.elysium.softwork.worker.forum.data.store.ForumReportStoreImpl
 import com.elysium.softwork.worker.forum.domain.ForumReportStore
+import com.elysium.softwork.feedback.data.store.SurveyStore
+import com.elysium.softwork.feedback.data.store.SurveyStoreImpl
+import com.elysium.softwork.notifications.data.store.NotificationStore
+import com.elysium.softwork.notifications.data.store.NotificationStoreImpl
 
 /**
  * Manual service locator. The locked stack does not include Hilt, so a single, explicit
@@ -53,5 +57,14 @@ class ServiceLocator(context: Context) {
     val forumReportStore: ForumReportStore = ForumReportStoreImpl(
         webService = forumReportWebService
     )
+    // endregion
+
+    // region Feedback
+    val surveyStore: SurveyStore = SurveyStoreImpl(context.applicationContext)
+    // endregion
+
+    // region Notifications
+    val notificationStore: NotificationStore =
+        NotificationStoreImpl(context.applicationContext)
     // endregion
 }

@@ -187,4 +187,23 @@
     <string name="cd_paperclip">Adjunto</string>
     <string name="cd_image">Agregar imagen</string>
     <string name="cd_new_post">Nueva publicación</string>
+
+    <!-- Notificaciones -->
+    <string name="notifications_title">Notificaciones</string>
+    <string name="notif_survey_title">Nueva encuesta</string>
+    <string name="notif_survey_desc">Tienes una nueva encuesta pendiente</string>
+    <string name="notif_payment_title">Pagos</string>
+    <string name="notif_payment_desc">Tu plan vencerá pronto</string>
+    <string name="notif_forum_title">Foro</string>
+    <string name="notif_forum_desc">Tienes una nueva respuesta</string>
+    <string name="notif_message_title">Mensaje</string>
+    <string name="notif_message_desc">Tienes un nuevo mensaje de RRHH</string>
+
+    <!-- Feedback: encuestas pendientes -->
+    <string name="surveys_title">Encuestas pendientes</string>
+    <string name="survey_start_button">Comenzar</string>
+    <string name="survey_climate_title">Clima laboral</string>
+    <string name="survey_climate_desc">Cuéntanos cómo te sientes con tu equipo y entorno.</string>
+    <string name="survey_productivity_title">Productividad</string>
+    <string name="survey_productivity_desc">Ayúdanos a entender cómo mejorar tu flujo de trabajo.</string>
 </resources>
