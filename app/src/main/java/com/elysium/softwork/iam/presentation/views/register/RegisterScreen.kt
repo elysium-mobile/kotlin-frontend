@@ -3,10 +3,15 @@ package com.elysium.softwork.iam.presentation.views.register
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -60,9 +65,15 @@ fun RegisterScreen(
         }
     }
 
+    // Inset consumption strategy for the register form: the union of `systemBars` and
+    // `ime` adds top padding for the status bar, and adds bottom padding equal to
+    // `max(navigationBars.bottom, ime.bottom)`. This keeps the `BackTopBar` clear of the
+    // status bar and the primary "Sign up" button clear of both the navigation bar and
+    // the software keyboard, on every device form factor.
     Column(
         modifier = modifier
             .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.ime))
             .verticalScroll(rememberScrollState()),
     ) {
         BackTopBar(onBack = onBack)

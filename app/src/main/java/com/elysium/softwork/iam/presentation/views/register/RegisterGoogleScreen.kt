@@ -2,10 +2,15 @@ package com.elysium.softwork.iam.presentation.views.register
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -53,9 +58,13 @@ fun RegisterGoogleScreen(
         }
     }
 
+    // Inset consumption strategy: the union of `systemBars` and `ime` ensures the
+    // `BackTopBar` stays below the status bar and the primary "Sign up" button stays
+    // above whichever is taller — the navigation-bar inset or the software keyboard.
     Column(
         modifier = modifier
             .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.ime))
             .verticalScroll(rememberScrollState()),
     ) {
         BackTopBar(onBack = onBack)

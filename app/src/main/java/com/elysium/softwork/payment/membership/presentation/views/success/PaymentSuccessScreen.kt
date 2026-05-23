@@ -1,5 +1,6 @@
 package com.elysium.softwork.payment.membership.presentation.views.success
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,10 +59,13 @@ fun PaymentSuccessScreen(
     ) {
         Spacer(modifier = Modifier.height(48.dp))
 
-        Icon(
-            painter = painterResource(R.drawable.ic_logo),
+        // Brand mark sourced from the adaptive launcher foreground so the in-app branding
+        // matches the device launcher exactly. Rendered via `Image` (not `Icon`) and with
+        // NO `tint` parameter so the vector's native gradients and multi-colour fills
+        // survive — applying a tint here would collapse the asset to a single flat colour.
+        Image(
+            painter = painterResource(R.drawable.ic_launcher_foreground),
             contentDescription = null,
-            tint = PrimaryNavy,
             modifier = Modifier.size(72.dp),
         )
 

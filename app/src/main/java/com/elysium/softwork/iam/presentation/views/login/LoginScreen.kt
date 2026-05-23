@@ -4,11 +4,16 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -44,7 +49,7 @@ import com.elysium.softwork.shared.presentation.theme.PrimarySky
 /**
  * Login surface for the SoftWork Employee app.
  *
- * Layout: brand logo + product name → "Bienvenido de vuelta" subtitle → email/password
+ * Layout: brand logo + product name → "Welcome back" subtitle → email/password
  * inputs → forgot-password link (right-aligned) → primary "Sign in" button →
  * outline Google button → footer link to register.
  *
@@ -72,21 +77,42 @@ fun LoginScreen(
         }
     }
 
+    // Inset consumption strategy for the login form:
+    //  - `WindowInsets.systemBars.union(WindowInsets.ime)` produces a per-edge max of the
+    //    status/navigation-bar insets and the IME inset. The top is always the status-bar
+    //    height; the bottom is whichever is larger at the moment: the navigation-bar inset
+    //    when the keyboard is hidden, or the keyboard height when it is shown.
+    //  - Applying the union via `windowInsetsPadding` BEFORE `verticalScroll` ensures the
+    //    insets stay outside the scrollable area, so form fields and the primary "Sign in"
+    //    button stay reachable above the keyboard and clear of the system gesture pill.
     Column(
         modifier = modifier
             .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.ime))
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(Modifier.height(48.dp))
+        Spacer(Modifier.height(24.dp))
 
+        // Brand mark sourced from the adaptive launcher foreground so the same vector
+        // asset is shared between the launcher icon and the in-app branding. Rendered via
+        // `Image` (not `Icon`) so the vector's native gradients and multi-colour fills
+        // survive — `Icon` would flatten the asset to the current `LocalContentColor`.
+        //
+        // The bounding box is sized for the adaptive-icon safe zone: the launcher
+        // foreground vector reserves roughly an 18 % transparent margin on each edge for
+        // the system's icon mask, so the visible mark only occupies ~64 % of the box.
+        // 160.dp here yields a visible mark close to 100.dp, which matches the visual
+        // weight of the wordmark below.
         Image(
-            painter = painterResource(R.drawable.ic_logo),
+            painter = painterResource(R.drawable.ic_launcher_foreground),
             contentDescription = stringResource(R.string.cd_logo),
-            modifier = Modifier.size(72.dp),
+            modifier = Modifier.size(160.dp),
         )
-        Spacer(Modifier.height(12.dp))
+        // The launcher-foreground's internal safe-zone padding already provides visual
+        // separation below the mark, so the spacer is small to keep the wordmark tight.
+        Spacer(Modifier.height(0.dp))
         Text(
             text = stringResource(R.string.app_name),
             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
