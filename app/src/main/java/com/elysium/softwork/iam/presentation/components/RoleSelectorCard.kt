@@ -24,7 +24,7 @@ import com.elysium.softwork.shared.presentation.theme.PrimaryNavy
 import com.elysium.softwork.shared.presentation.theme.PrimarySky
 
 /**
- * Read-only role selector. Phase 2 only emits the EMPLOYEE role on this client, so the card
+ * Read-only role selector. The Employee client only emits the EMPLOYEE role, so the card
  * always renders the active state — the styling matches the mockup so the screen does not
  * need a different visual treatment when the role list grows.
  *

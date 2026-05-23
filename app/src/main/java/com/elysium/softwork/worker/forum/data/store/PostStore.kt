@@ -4,7 +4,7 @@ import com.elysium.softwork.worker.forum.domain.model.Post
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Forum data port. Phase 4 follows an **offline-first** pattern: the UI always observes the
+ * Forum data port. Follows an **offline-first** pattern: the UI always observes the
  * cached [Flow] from Room ([observe]) and treats network calls ([refresh], [publish]) as
  * mutations that update the cache. This keeps the feed responsive even when the network is
  * slow or absent.

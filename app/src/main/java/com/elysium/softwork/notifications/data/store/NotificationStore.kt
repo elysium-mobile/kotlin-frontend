@@ -4,8 +4,9 @@ import com.elysium.softwork.notifications.domain.model.Notification
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Notifications data port. Phase 6 only models the read-side feed; future milestones will
- * add `markAsRead(id)` / `clearAll()` mutations once the backend contract is defined.
+ * Notifications data port. Currently models the read-side feed only; mutation endpoints
+ * such as `markAsRead(id)` / `clearAll()` can be appended to this contract without
+ * changing call sites.
  */
 interface NotificationStore {
 

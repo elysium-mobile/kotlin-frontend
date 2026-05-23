@@ -9,9 +9,9 @@ import kotlinx.coroutines.delay
 /**
  * Implementation of [ForumReportStore] using Retrofit.
  *
- * Phase 4 demo behaviour: [list] falls back to a bundled sample list when the network
- * round-trip fails so the reports-status screen has something to render without a backend.
- * Remove [SampleReports] when the `/forum/reports` GET endpoint is live.
+ * Demo fallback: [list] returns a bundled sample list when the network round-trip fails so
+ * the reports-status screen always has something to render. Remove [SampleReports] once
+ * the remote endpoint is reachable.
  *
  * @property webService the Retrofit service for reports.
  */

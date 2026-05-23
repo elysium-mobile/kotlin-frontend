@@ -4,8 +4,9 @@ import com.elysium.softwork.feedback.domain.model.Survey
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Feedback data port. Phase 5 only models the read-side of the pending-surveys list. Future
- * milestones will add submission endpoints (e.g. `submitAnswers(...)`).
+ * Feedback data port. Currently models the read-side of the pending-surveys list only;
+ * submission endpoints (e.g. `submitAnswers(...)`) can be appended to this contract
+ * without changing call sites.
  */
 interface SurveyStore {
 

@@ -560,6 +560,95 @@ hook.
   `ic_check_circle`, `ic_flag`, `ic_forum`, `ic_send`, `ic_chevron_right` set. Swap in
   dedicated glyphs (e.g. `ic_money`, `ic_mail`) when the brand library expands.
 
+### ✅ Phase 7 (in progress) — Payment / Membership bounded context
+
+- **Domain**: [`MembershipPlan`](app/src/main/java/com/elysium/softwork/payment/membership/domain/model/MembershipPlan.kt)
+  (`key` / `name` / `monthlyPrice` / `features` / `isRecommended`) and
+  [`PaymentMethod`](app/src/main/java/com/elysium/softwork/payment/membership/domain/model/PaymentMethod.kt)
+  (`id` / `brand` / `holderName` / `last4` / `expiryMonthYear`). Both annotated with
+  `@SerializedName` per the bean shortcut. `monthlyPrice` is intentionally a pre-formatted
+  string so the backend (not Compose) owns locale and currency choices.
+- **Data**: `MembershipStore` interface in `payment/membership/data/store/` + mocked
+  `MembershipStoreImpl`. Membership flags (`KEY_HAS_MEMBERSHIP`, `KEY_CURRENT_PLAN`)
+  persist through `SharedPrefsManager`; the saved-cards list lives in an in-memory
+  `MutableStateFlow`. The catalogue (Basic S/. 59, Plan Pro S/. 99 — Plan Pro flagged as
+  `isRecommended`) is hardcoded in a `PlanCatalogue` companion until `/plans` ships.
+- **Reactive gate**: `hasMembership` and `currentPlanKey` are exposed as `StateFlow`s on
+  the store. `MainActivity` collects `hasMembership` and uses it to decide whether to
+  mount `MainNavHost` or the standalone `PaymentOnboardingHost`. "Cancel subscription"
+  clears both prefs and emits the new value; the Activity recomposes, the main shell
+  unmounts (back stack wiped automatically), and the worker lands back at
+  `MembershipSelectionScreen` — no explicit `popUpTo` needed.
+- **Application**: `MembershipViewModel` exposes `availablePlans`, `paymentMethods`,
+  `currentPlanKey`, a `CardFormState` buffer for the new-card composer with input
+  formatting (digit-only filtering, `MM/YY` auto-slash insertion), a `PaymentState`
+  state machine (`Idle` → `Processing` → `Succeeded`), and orchestrator methods
+  `addCard`, `payMembership`, `activateMembership`, `cancelSubscription`,
+  `consumePaymentState`. Standard `Factory` companion pulls `membershipStore` from
+  `ServiceLocator` via `CreationExtras`.
+- **Presentation** (four screens under `payment/membership/presentation/views/`):
+  - **`MembershipSelectionScreen`** — header + plan cards. Recommended tier (Plan Pro)
+    uses PrimaryTeal accent + solid teal CTA; the basic tier uses an outline CTA.
+  - **`PaymentMethodsScreen(planKey, fromSettings, ...)`** — gradient PrimaryTeal→PrimaryNavy
+    "Next charge" hero card recapping the selection, list of saved cards (or a
+    structural empty-state placeholder), outline "Add payment method" row, primary
+    "Pay membership" CTA disabled until a card exists, and a Danger-tinted
+    "Cancel subscription" text link rendered **only** when `fromSettings = true`.
+    Routes through a `LaunchedEffect(paymentState)` so the screen navigates exactly
+    once on `PaymentState.Succeeded` and then resets the VM stream.
+  - **`NewCardScreen`** — high-fidelity gradient credit-card preview that updates as
+    the worker types (`XXXX`-padded PAN grouping keeps layout stable), four
+    `SoftWorkTextField` inputs with numeric IMEs, a Material 3 `Switch` for
+    "Save this card", and a primary `SoftWorkButton` ("Add card"). Disabled until
+    the minimal validator (`CardFormState.isValid`) is satisfied.
+  - **`PaymentSuccessScreen(planKey, ...)`** — lockup + checkmark + "Membership activated"
+    + `SoftWorkButton` "Main menu". Tap calls `viewModel.activateMembership(planKey)`
+    which flips `hasMembership` to `true`; the Activity-level collector then swaps the
+    user into `MainNavHost`.
+- **Navigation**: `PaymentRoutes` defines `SELECTION`, parameterized `METHODS`
+  (`payment/methods/{planKey}/{fromSettings}` — `BoolType` argument),
+  `NEW_CARD`, and parameterized `SUCCESS` (`payment/success/{planKey}`). A
+  `CURRENT_PLAN_SENTINEL = "current"` is passed by the settings entry so the methods
+  screen resolves the active plan from `MembershipStore.currentPlanKey`.
+  `NavGraphBuilder.paymentGraph(navController, onExitToMainShell)` is mounted **twice**:
+  - From `MainActivity.PaymentOnboardingHost` (standalone `NavHost`) when the membership
+    gate fires.
+  - From `MainNavHost` so Profile → "Payment methods" lands inside the main back stack
+    with `fromSettings = true`.
+- **Wiring**: `ServiceLocator` gains `val membershipStore: MembershipStore =
+  MembershipStoreImpl(sharedPrefsManager)`. `SharedPrefsManager` gains
+  `KEY_HAS_MEMBERSHIP` (Boolean) and `KEY_CURRENT_PLAN` (String).
+- **MainActivity** evolves from a two-state (auth/no-auth) router to a three-state
+  router (`!authenticated` → `AuthNavHost`, `authenticated && !hasMembership` →
+  `PaymentOnboardingHost`, `authenticated && hasMembership` → `MainNavHost`). The host
+  swap on cancel/activation is driven by `collectAsState` on `membershipStore.hasMembership`.
+- **ProfileScreen**: `onOpenPaymentMethods` now navigates to
+  `PaymentRoutes.methods(planKey = CURRENT_PLAN_SENTINEL, fromSettings = true)` — that's
+  what enables the reactive cancel button.
+- **i18n**: 22 new `payment_*` keys added to both `values/strings.xml` and
+  `values-es/strings.xml`. **Strict feature policy**: this bounded context ships in
+  English only; the Spanish locale file holds the same English strings (not translations)
+  so the i18n machinery stays consistent without violating the policy.
+- **Icons**: no new drawables added — the screens reuse `ic_arrow_back`, `ic_check`,
+  `ic_add`, and `ic_logo`. Add a dedicated `ic_credit_card.xml` if the brand library
+  later wants a real card glyph (currently the brand badge is a teal pill with the
+  brand name).
+
+#### Phase 7 caveats
+
+- **Cards live in memory.** Saved cards do not survive process death — the
+  `MutableStateFlow<List<PaymentMethod>>` is rebuilt empty on every cold start.
+  Persist through Room or a real `PaymentWebService` before shipping.
+- **Card data is unencrypted.** Phase 7 stores PANs in memory only and `last4` is the
+  only piece displayed back to the user, but the form itself buffers the full PAN
+  in plaintext. **PCI rule**: replace with a tokenized reference from the processor
+  before any production build.
+- **`detectBrand` is a 1-digit BIN heuristic.** Good enough to surface the brand
+  badge in the mock; swap with the processor's response in production.
+- **Mock payment flow** — the 1 s `delay` lives in `MembershipViewModel.payMembership()`.
+  No real network call, no idempotency key, no retry. Replace the body when
+  `/subscriptions` is live.
+
 ### 🔜 Next — Phase (IMPLEMENTATION WITH REAL BACKEND API)
 
 - Comment domain + store + WebService backing `ThreadScreen`.

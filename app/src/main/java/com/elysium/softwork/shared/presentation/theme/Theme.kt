@@ -10,8 +10,9 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
 
 /**
- * Material 3 [ColorScheme] derived from the SoftWork brand palette. Phase 1 ships a single
- * light scheme; a dark variant will be introduced when the design team signs off on values.
+ * Material 3 [ColorScheme] derived from the SoftWork brand palette. The theme exposes a
+ * single light scheme; a dark variant can be added by introducing a parallel
+ * `SoftWorkDarkColorScheme` and selecting on `isSystemInDarkTheme()` inside [SoftWorkTheme].
  */
 private val SoftWorkLightColorScheme: ColorScheme = lightColorScheme(
     primary = PrimarySky,

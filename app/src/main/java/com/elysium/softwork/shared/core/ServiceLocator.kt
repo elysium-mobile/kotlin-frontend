@@ -17,6 +17,8 @@ import com.elysium.softwork.feedback.data.store.SurveyStore
 import com.elysium.softwork.feedback.data.store.SurveyStoreImpl
 import com.elysium.softwork.notifications.data.store.NotificationStore
 import com.elysium.softwork.notifications.data.store.NotificationStoreImpl
+import com.elysium.softwork.payment.membership.data.store.MembershipStore
+import com.elysium.softwork.payment.membership.data.store.MembershipStoreImpl
 
 /**
  * Manual service locator. The locked stack does not include Hilt, so a single, explicit
@@ -66,5 +68,9 @@ class ServiceLocator(context: Context) {
     // region Notifications
     val notificationStore: NotificationStore =
         NotificationStoreImpl(context.applicationContext)
+    // endregion
+
+    // region Payment / Membership
+    val membershipStore: MembershipStore = MembershipStoreImpl(sharedPrefsManager)
     // endregion
 }

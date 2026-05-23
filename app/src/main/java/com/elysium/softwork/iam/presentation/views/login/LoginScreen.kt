@@ -51,7 +51,7 @@ import com.elysium.softwork.shared.presentation.theme.PrimarySky
  * @param onLoginSuccess invoked when the auth call completes successfully.
  * @param onNavigateToRegister opens the standard register flow.
  * @param onNavigateToRegisterWithGoogle opens the Google-flow register screen.
- * @param onForgotPassword opens the forgot-password flow (Phase 2 placeholder).
+ * @param onForgotPassword opens the forgot-password flow (currently a no-op placeholder).
  */
 @Composable
 fun LoginScreen(

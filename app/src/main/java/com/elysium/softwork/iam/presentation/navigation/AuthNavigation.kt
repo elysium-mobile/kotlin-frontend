@@ -16,9 +16,9 @@ import com.elysium.softwork.iam.presentation.views.success.AuthSuccessScreen
 import com.elysium.softwork.shared.utils.discriminators.SuccessKind
 
 /**
- * IAM nav host. Designed to be embedded inside a future root nav graph but works stand-alone
- * for Phase 2 — `MainActivity` calls [AuthNavHost] directly until additional contexts (forum,
- * feedback) come online.
+ * IAM nav host. Mounted directly by `MainActivity` for the unauthenticated branch of the
+ * top-level shell. Designed to also be embeddable inside a parent nav graph without
+ * changes — the host owns its own `NavController` by default but accepts one as a parameter.
  *
  * Route catalog lives in [AuthRoutes]; the [SuccessKind] discriminator that drives the
  * `auth/success/{kind}` nav-arg lives in `shared/utils/discriminators/`.
@@ -42,7 +42,7 @@ fun AuthNavHost(
                 },
                 onNavigateToRegister = { navController.navigate(AuthRoutes.REGISTER) },
                 onNavigateToRegisterWithGoogle = { navController.navigate(AuthRoutes.REGISTER_GOOGLE) },
-                onForgotPassword = { /* Phase 2: forgot-password flow not yet implemented. */ },
+                onForgotPassword = { /* Forgot-password flow is not yet implemented. */ },
             )
         }
 

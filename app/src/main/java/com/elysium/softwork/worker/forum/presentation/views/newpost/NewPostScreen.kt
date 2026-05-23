@@ -300,12 +300,12 @@ private fun Toolbar() {
         ToolbarIcon(
             iconRes = R.drawable.ic_image,
             contentDescription = stringResource(R.string.cd_image),
-            onClick = { /* Phase 4 placeholder — image picker arrives in Phase 5. */ },
+            onClick = { /* Image picker is not yet implemented. */ },
         )
         ToolbarIcon(
             iconRes = R.drawable.ic_paperclip,
             contentDescription = stringResource(R.string.cd_paperclip),
-            onClick = { /* Phase 4 placeholder — attachment picker arrives in Phase 5. */ },
+            onClick = { /* Attachment picker is not yet implemented. */ },
         )
     }
 }

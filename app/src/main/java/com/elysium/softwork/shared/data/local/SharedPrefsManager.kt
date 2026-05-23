@@ -7,9 +7,9 @@ import androidx.core.content.edit
 /**
  * Thin wrapper around the legacy [SharedPreferences] API for cross-cutting key/value storage.
  *
- * Phase 2 keeps this minimal — Stores depend on it for credentials/session tokens. We avoid
- * DataStore because the locked stack (Kotlin / Compose / Retrofit / Room) does not include it
- * and adding a new dependency for a single token write is not justified yet.
+ * Intentionally minimal — Stores depend on it for small key/value primitives such as
+ * credentials, session tokens, and feature flags. DataStore is not part of the locked
+ * tech stack and is not introduced for the small surface area covered here.
  *
  * NOTE: this stores tokens in plain shared preferences. If the security team requires
  * encryption later, swap the backing store to `EncryptedSharedPreferences` here without
@@ -63,5 +63,20 @@ class SharedPrefsManager(context: Context) {
 
         /** Storage key for the per-context anonymity flag in incident reports. */
         const val KEY_REPORTS_ANONYMITY: String = "reports_anonymity"
+
+        /**
+         * Storage key for the membership gate flag. When `false`, an authenticated worker
+         * must be routed exclusively into the payment graph; the main app shell stays
+         * unreachable until a successful subscription flips this to `true`. Cleared by
+         * `MembershipStore.cancelSubscription()`.
+         */
+        const val KEY_HAS_MEMBERSHIP: String = "has_membership"
+
+        /**
+         * Storage key for the active plan's stable [String] identifier (matches
+         * `MembershipPlan.key`). Read by the methods screen to recap the next charge and by
+         * any consumer that needs to gate features by tier.
+         */
+        const val KEY_CURRENT_PLAN: String = "current_plan"
     }
 }

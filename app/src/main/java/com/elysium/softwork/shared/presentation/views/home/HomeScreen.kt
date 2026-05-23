@@ -127,7 +127,7 @@ fun HomeScreen(
         Spacer(Modifier.height(12.dp))
 
         ActionCard(
-            iconRes = R.drawable.ic_sparkle, // Using sparkle for membership as per design preference
+            iconRes = R.drawable.ic_payments, // Using sparkle for membership as per design preference
             iconContentDescription = stringResource(R.string.home_membership),
             title = stringResource(R.string.home_membership),
             subtitle = stringResource(R.string.home_membership_subtitle),

@@ -18,7 +18,7 @@ fun NavGraphBuilder.feedbackGraph(navController: NavHostController) {
     composable(FeedbackRoutes.PENDING_SURVEYS) {
         PendingSurveysScreen(
             onBack = { navController.popBackStack() },
-            onStartSurvey = { /* Phase 5 — wires to the answer flow. */ },
+            onStartSurvey = { /* The answer flow is not yet wired. */ },
         )
     }
 }

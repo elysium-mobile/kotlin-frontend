@@ -11,9 +11,9 @@ import com.elysium.softwork.worker.forum.domain.model.Post
  * [com.elysium.softwork.worker.forum.data.store.PostStoreImpl] writes after each network refresh
  * and that the UI observes through [PostDao.getAllPosts].
  *
- * Phase 4 ships version 1 with destructive migrations enabled — the schema is small and
- * pre-launch, so dropping the table on schema change is acceptable. Switch to explicit
- * migrations once the app reaches beta.
+ * Schema version 1 ships with destructive migrations enabled — the schema is small enough
+ * that dropping the table on a schema change is acceptable. Switch to explicit migrations
+ * before any production release.
  */
 @Database(entities = [Post::class], version = 1, exportSchema = false)
 abstract class ForumDatabase : RoomDatabase() {

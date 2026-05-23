@@ -3,10 +3,13 @@ package com.elysium.softwork.shared.presentation.navigation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -35,6 +38,8 @@ import com.elysium.softwork.feedback.presentation.navigation.FeedbackRoutes
 import com.elysium.softwork.feedback.presentation.navigation.feedbackGraph
 import com.elysium.softwork.notifications.presentation.navigation.NotificationRoutes
 import com.elysium.softwork.notifications.presentation.navigation.notificationGraph
+import com.elysium.softwork.payment.membership.presentation.navigation.PaymentRoutes
+import com.elysium.softwork.payment.membership.presentation.navigation.paymentGraph
 import com.elysium.softwork.worker.forum.presentation.navigation.ForumRoutes
 import com.elysium.softwork.worker.forum.presentation.navigation.forumGraph
 import com.elysium.softwork.shared.presentation.views.home.HomeScreen
@@ -55,15 +60,15 @@ private data class BottomDestination(
 
 private val BottomDestinations: List<BottomDestination> = listOf(
     BottomDestination(MainRoutes.HOME, R.string.nav_home, R.drawable.ic_home, R.string.cd_home),
-    BottomDestination(MainRoutes.PROFILE, R.string.nav_profile, R.drawable.ic_person, R.string.cd_user_icon),
     BottomDestination(ForumRoutes.FEED, R.string.nav_forum, R.drawable.ic_forum, R.string.cd_forum),
     BottomDestination(NotificationRoutes.NOTIFICATIONS_FEED, R.string.nav_notifications, R.drawable.ic_notifications, R.string.cd_notifications),
+    BottomDestination(MainRoutes.PROFILE, R.string.nav_profile, R.drawable.ic_person, R.string.cd_user_icon),
 )
 
 /**
  * Authenticated shell. Owns the bottom navigation bar and nests a [NavHost] for the four
- * tabs. The forum and notifications tabs render placeholders until those bounded contexts
- * come online.
+ * tabs (Home, Forum, Notifications, Profile) plus the auxiliary destinations reached from
+ * Home action cards and Profile rows.
  *
  * @param userName name passed straight to [HomeScreen] for the greeting block.
  * @param onLogout invoked when the user taps "Sign out" on the profile screen. The
@@ -97,19 +102,29 @@ fun MainNavHost(
                         navController.navigate(ForumRoutes.REPORTS_STATUS)
                     },
                     onOpenForums = { navController.navigateToTab(ForumRoutes.FEED) },
-                    onOpenAssistant = { /* Phase 6: AI assistant not yet implemented. */ },
+                    onOpenAssistant = { /* AI assistant entry point is not yet implemented. */ },
                     onOpenSurveys = { navController.navigate(FeedbackRoutes.PENDING_SURVEYS) },
                     onOpenMembership = { navController.navigate(MainRoutes.MEMBERSHIP) },
                 )
             }
             composable(MainRoutes.PROFILE) {
                 ProfileScreen(
-                    onEditProfile = { /* Phase 3: edit-profile flow not yet implemented. */ },
+                    onEditProfile = { /* Edit-profile flow is not yet implemented. */ },
                     onLogout = onLogout,
                     onOpenAnonymousForumSettings = {
                         navController.navigate(MainRoutes.PROTECTED_IDENTITY)
                     },
-                    onOpenPaymentMethods = { /* Phase 3: payment methods not yet implemented. */ },
+                    onOpenPaymentMethods = {
+                        // Settings entry into the payment graph. Pass the sentinel so the
+                        // methods screen resolves the active plan from the store, and flip
+                        // fromSettings = true so the "Cancel subscription" row renders.
+                        navController.navigate(
+                            PaymentRoutes.methods(
+                                planKey = PaymentRoutes.CURRENT_PLAN_SENTINEL,
+                                fromSettings = true,
+                            ),
+                        )
+                    },
                 )
             }
             composable(MainRoutes.PROTECTED_IDENTITY) {
@@ -127,19 +142,49 @@ fun MainNavHost(
             }
             forumGraph(navController = navController, userName = userName)
             notificationGraph(navController = navController)
+            // Payment routes mounted here so Profile → "Payment methods" stays on the
+            // main back stack. Cancellation does not need to navigate — flipping the
+            // membership flag in the store causes MainActivity to swap the host entirely.
+            paymentGraph(
+                navController = navController,
+                onExitToMainShell = { /* unused on the settings mount. */ },
+            )
         }
     }
 }
 
+/**
+ * Bottom navigation bar for the authenticated shell.
+ *
+ * Window-inset handling is explicit:
+ * - `Modifier.windowInsetsPadding(WindowInsets.navigationBars)` reserves exact pixel space
+ *   for whichever system navigation affordance the device renders — the three-button bar
+ *   on legacy devices, the gesture pill on modern devices, or a zero-height inset on
+ *   devices that hide system navigation entirely.
+ * - `windowInsets = WindowInsets(0)` disables [NavigationBar]'s internal default insets so
+ *   the explicit modifier above is the single source of truth, preventing double padding.
+ *
+ * The 72.dp height is the interactive item region; the inset padding is rendered as an
+ * additional band underneath, so the total bar height grows automatically to clear the
+ * system navigation without overlapping it. Because the bar is hosted in the `bottomBar`
+ * slot of [Scaffold], the resulting height is propagated to the content `PaddingValues`,
+ * keeping screen bodies clear of the bar.
+ *
+ * `alwaysShowLabel = false` on each [NavigationBarItem] hides the label while unselected,
+ * recovering vertical real estate on narrower screens and reducing visual noise.
+ */
 @Composable
 private fun SoftWorkBottomBar(navController: NavHostController) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute: String? = backStackEntry?.destination?.route
 
     NavigationBar(
-        modifier = Modifier.height(72.dp),
+        modifier = Modifier
+            .windowInsetsPadding(WindowInsets.navigationBars)
+            .height(72.dp),
         containerColor = Color.White,
         tonalElevation = 0.dp,
+        windowInsets = WindowInsets(0),
     ) {
         BottomDestinations.forEach { destination ->
             val selected: Boolean = backStackEntry?.destination?.hierarchy?.any { it.route == destination.route } == true ||
@@ -161,7 +206,7 @@ private fun SoftWorkBottomBar(navController: NavHostController) {
                         style = MaterialTheme.typography.labelSmall,
                     )
                 },
-                alwaysShowLabel = true,
+                alwaysShowLabel = false,
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = PrimarySky,
                     selectedTextColor = PrimarySky,

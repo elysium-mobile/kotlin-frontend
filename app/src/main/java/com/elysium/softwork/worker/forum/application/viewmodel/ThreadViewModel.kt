@@ -18,8 +18,9 @@ import kotlinx.coroutines.launch
  * id and exposes the `forum_anonymity` flag so the sticky comment input can render the
  * correct identity.
  *
- * Comments are not persisted in Phase 4 — the screen renders a static sample list inline so
- * the bubble layout can be reviewed without a backend. A full Comment store lands in Phase 5.
+ * Comments are not persisted: the screen renders a static sample list inline so the bubble
+ * layout can be reviewed without a backend. A future Comment store can replace the sample
+ * data without changing the screen's contract.
  */
 class ThreadViewModel(
     private val store: PostStore,

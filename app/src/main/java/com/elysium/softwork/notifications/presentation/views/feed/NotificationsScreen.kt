@@ -45,7 +45,7 @@ import com.elysium.softwork.shared.presentation.theme.Warning
 import com.elysium.softwork.shared.utils.values.NotificationType
 
 /**
- * "Notificaciones" screen — color-coded list of the worker's in-app notifications.
+ * Notifications Screen — color-coded list of the worker's in-app notifications.
  *
  * Per the design brief, this screen intentionally deviates from the plain monochrome
  * mockup: each card is themed by [NotificationType] (background tint + icon/title color)
@@ -197,7 +197,7 @@ private data class NotificationTheme(
             NotificationType.PAYMENT -> NotificationTheme(
                 background = WarningSurface,
                 foreground = Warning,
-                iconRes = R.drawable.ic_flag,
+                iconRes = R.drawable.ic_payments,
             )
             NotificationType.FORUM -> NotificationTheme(
                 background = SkySurface,

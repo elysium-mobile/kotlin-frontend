@@ -6,9 +6,9 @@ import retrofit2.http.Body
 import retrofit2.http.POST
 
 /**
- * Retrofit contract for IAM endpoints. Per the team's pragmatic shortcut, the same [User]
- * data class is used for both the request body and the response payload — no DTO/assembler
- * boilerplate. Different endpoints fill different subsets of [User] (see the model KDoc).
+ * Retrofit contract for IAM endpoints. The same [User] data class carries both the request
+ * body and the response payload — no DTO/assembler boilerplate. Different endpoints fill
+ * different subsets of [User] (see the model KDoc).
  */
 interface AuthWebService {
 

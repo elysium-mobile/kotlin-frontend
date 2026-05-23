@@ -55,9 +55,9 @@ import com.elysium.softwork.shared.presentation.theme.Danger
 
 /**
  * Thread-detail screen. Shows the original post at the top followed by a static sample
- * comment list (Phase 5 will replace these with real Comment data). The bottom sticky input
- * row reads `forum_anonymity` from [ThreadViewModel.isAnonymous] to decide which avatar +
- * caption to render next to the input field.
+ * comment list while the Comment domain is not yet modelled. The bottom sticky input row
+ * reads the forum-anonymity preference from [ThreadViewModel.isAnonymous] to decide which
+ * avatar + caption to render next to the input field.
  *
  * @param onReport navigates to the report screen for the current post.
  */
@@ -115,7 +115,7 @@ fun ThreadScreen(
     }
 }
 
-/** Inline placeholder comment used in Phase 4 — replaced with a Comment domain in Phase 5. */
+/** Inline placeholder comment used while the Comment domain is not yet modelled. */
 private data class SampleComment(
     val id: String,
     val authorName: String,
@@ -314,7 +314,7 @@ private fun StickyCommentInput(isAnonymous: Boolean, userName: String) {
                     .size(40.dp)
                     .background(color = PrimarySky, shape = CircleShape)
                     .clickable(enabled = draft.isNotBlank()) {
-                        // Phase 5: persist comment via a future CommentStore.
+                        // A future CommentStore is expected to persist the input here.
                         draft = ""
                     },
                 contentAlignment = Alignment.Center,

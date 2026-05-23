@@ -18,7 +18,7 @@ import com.elysium.softwork.notifications.presentation.views.feed.NotificationsS
 fun NavGraphBuilder.notificationGraph(navController: NavHostController) {
     composable(NotificationRoutes.NOTIFICATIONS_FEED) {
         NotificationsScreen(
-            onNotificationClick = { /* Phase 6: per-type deep-link routing lands later. */ },
+            onNotificationClick = { /* Per-type deep-link routing is not yet wired. */ },
         )
     }
 }

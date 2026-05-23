@@ -6,9 +6,9 @@ import com.google.gson.annotations.SerializedName
 /**
  * An in-app notification surfaced on the Notifications tab.
  *
- * Phase 6 ships a mocked list; once the `/notifications` endpoint exists this class doubles
- * as the wire bean per the project's pragmatic shortcut (see CLAUDE.md → "Bean / Pragmatic
- * Shortcut"). [type] drives the per-card color theming on `NotificationsScreen`.
+ * The same instance flows through the Retrofit web service request/response and into the
+ * in-memory feed, so all fields default to nullable-friendly empty values. [type] drives
+ * the per-card color theming on the notifications feed.
  *
  * @property id stable identifier issued by the backend (or a mock literal in the seed set).
  * @property type category discriminator — see [NotificationType].

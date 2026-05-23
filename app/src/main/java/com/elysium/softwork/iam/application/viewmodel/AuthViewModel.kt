@@ -44,7 +44,7 @@ class AuthViewModel(private val authStore: AuthStore) : ViewModel() {
         val passwordsMatch: Boolean get() = AuthValidation.doPasswordsMatch(password, confirmPassword)
         val isUsernameValid: Boolean get() = AuthValidation.isUsernameValid(username)
 
-        /** Phase 2 only emits the EMPLOYEE role. */
+        /** The Employee client only emits the EMPLOYEE role. */
         companion object {
             const val ROLE_EMPLOYEE: String = "EMPLOYEE"
         }
