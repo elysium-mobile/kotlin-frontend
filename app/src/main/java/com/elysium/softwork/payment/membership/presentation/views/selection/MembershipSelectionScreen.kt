@@ -50,7 +50,7 @@ import com.elysium.softwork.shared.presentation.theme.PrimaryTeal
  *
  * Renders the catalogue exposed by [MembershipViewModel.availablePlans] as a vertically
  * scrolling list of cards. Plans flagged with `isRecommended = true` use the [PrimaryTeal]
- * architectural accent (label colour, price colour, feature-check colour, solid CTA fill)
+ * architectural accent (label color, price color, feature-check color, solid CTA fill)
  * to steer the worker toward the upsell. Non-recommended plans use the neutral
  * [PrimarySky] accent with an outlined CTA so the recommended tier dominates visually.
  *

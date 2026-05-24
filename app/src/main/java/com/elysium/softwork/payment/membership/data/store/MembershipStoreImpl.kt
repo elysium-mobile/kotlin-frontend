@@ -37,7 +37,7 @@ class MembershipStoreImpl(private val prefs: SharedPrefsManager) : MembershipSto
         PlanCatalogue.firstOrNull { it.key == planKey }
 
     override suspend fun addPaymentMethod(method: PaymentMethod) {
-        _paymentMethods.value = _paymentMethods.value + method
+        _paymentMethods.value += method
     }
 
     override suspend fun activateMembership(planKey: String) {

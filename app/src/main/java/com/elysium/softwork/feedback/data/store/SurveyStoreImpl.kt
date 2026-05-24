@@ -7,8 +7,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
 /**
- * Mocked [SurveyStore]. Returns a static list of two surveys ("Clima laboral",
- * "Productividad") resolved through Android string resources so the catalogue stays
+ * Mocked [SurveyStore]. Returns a static list of two surveys ("Workplace climate",
+ * "Productivity") resolved through Android string resources so the catalogue stays
  * localized while the backend is offline.
  *
  * Replace with a Retrofit-backed implementation when the `/surveys` endpoint is live; the

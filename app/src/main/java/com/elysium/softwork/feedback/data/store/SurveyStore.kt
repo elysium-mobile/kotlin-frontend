@@ -4,7 +4,7 @@ import com.elysium.softwork.feedback.domain.model.Survey
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Feedback data port. Currently models the read-side of the pending-surveys list only;
+ * Feedback data port. Currently, models the read-side of the pending-surveys list only;
  * submission endpoints (e.g. `submitAnswers(...)`) can be appended to this contract
  * without changing call sites.
  */

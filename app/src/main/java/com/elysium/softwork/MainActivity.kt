@@ -33,7 +33,7 @@ import com.elysium.softwork.shared.presentation.theme.SoftWorkTheme
  * active membership" — and routes the worker into one of three top-level hosts:
  * - **`AuthNavHost`** when unauthenticated.
  * - **`PaymentOnboardingHost`** when authenticated but `hasMembership` is `false` (the gate).
- *   The graph is rooted at [PaymentRoutes.SELECTION] and lets the worker pick a plan, enter
+ *   The graph is rooted at [com.elysium.softwork.payment.membership.presentation.navigation.PaymentRoutes.SELECTION] and lets the worker pick a plan, enter
  *   a card, and pay. Tapping "Main menu" on the success screen flips the flag.
  * - **[MainNavHost]** when authenticated AND a membership is active.
  *
