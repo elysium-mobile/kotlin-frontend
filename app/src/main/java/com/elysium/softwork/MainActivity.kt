@@ -15,11 +15,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.rememberNavController
 import com.elysium.softwork.iam.presentation.navigation.AuthNavHost
-import com.elysium.softwork.payment.membership.presentation.navigation.PaymentRoutes
-import com.elysium.softwork.payment.membership.presentation.navigation.paymentGraph
+import com.elysium.softwork.payment.membership.presentation.navigation.NoPaymentGraphExit
+import com.elysium.softwork.payment.membership.presentation.navigation.PaymentOnboardingHost
 import com.elysium.softwork.shared.presentation.navigation.MainNavHost
 import com.elysium.softwork.shared.presentation.theme.SoftWorkTheme
 
@@ -80,37 +78,11 @@ class MainActivity : AppCompatActivity() {
                 ) {
                     when {
                         !isAuthenticated -> AuthNavHost(onAuthComplete = onAuthComplete)
-                        !hasMembership -> PaymentOnboardingHost()
+                        !hasMembership -> PaymentOnboardingHost(onExitToMainShell = NoPaymentGraphExit)
                         else -> MainNavHost(userName = userName, onLogout = onLogout)
                     }
                 }
             }
         }
-    }
-}
-
-/**
- * Standalone payment NavHost mounted when an authenticated worker lacks an active
- * membership. Lives in its own composable so the back stack belongs exclusively to the
- * onboarding flow — when the worker pays successfully, the store's `hasMembership` flag
- * flips to `true`, [MainActivity] recomposes and unmounts this host entirely, which
- * naturally clears the back stack without any explicit `popUpTo`.
- *
- * The success screen's "Main menu" CTA does not need to navigate — flipping the gate flag
- * already triggers the host swap. The lambda passed to `paymentGraph` is therefore a no-op
- * on the onboarding mount.
- */
-@androidx.compose.runtime.Composable
-private fun PaymentOnboardingHost() {
-    val navController = rememberNavController()
-    NavHost(
-        navController = navController,
-        startDestination = PaymentRoutes.SELECTION,
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        paymentGraph(
-            navController = navController,
-            onExitToMainShell = { /* no-op: gate flip in the VM drives the swap. */ },
-        )
     }
 }

@@ -1,67 +1,72 @@
 package com.elysium.softwork.payment.membership.presentation.navigation
 
 /**
- * Route catalog for the payment & membership bounded context.
+ * Route catalog for the payment and membership bounded context.
  *
- * The graph is mounted in two places:
- * - As a standalone onboarding host owned by `MainActivity` when an authenticated worker
- *   has no active membership (the gate). [SELECTION] is the start destination.
- * - Nested inside `MainNavHost` when the worker enters via Profile → "Payment methods". The
- *   entry route is then [methods] with [METHODS_ARG_FROM_SETTINGS] = `true`, which is what
- *   surfaces the "Cancel subscription" action.
+ * The graph is mounted in two host contexts:
+ *  - As a standalone onboarding host at the application root when an authenticated worker
+ *    has no active membership. Entry point is [SELECTION].
+ *  - Nested inside the authenticated main shell when the worker enters through the
+ *    profile settings ("Payment methods"). Entry point is [methods] with
+ *    `fromSettings = true`, which surfaces the "Cancel subscription" action.
  *
- * [METHODS_ARG_PLAN_KEY] = [CURRENT_PLAN_SENTINEL] tells the methods screen to resolve the
- * plan from `MembershipStore.currentPlanKey` instead of from the nav argument — used by the
- * settings entry where the worker already has an active plan.
+ * Route templates use embedded path arguments. The graph declares the matching
+ * `navArgument` types in `PaymentNavigation.kt`, so callers only need to build route
+ * strings through the helper functions exposed here ([methods], [success]).
  */
 object PaymentRoutes {
 
-    /** Plan selection screen. Start destination of the onboarding graph. */
+    /** Plan-selection screen. Start destination of the onboarding graph. */
     const val SELECTION: String = "payment/selection"
 
-    // region Methods
+    /** Argument name carrying the stable plan key on the methods route. */
     const val METHODS_ARG_PLAN_KEY: String = "planKey"
+
+    /** Argument name carrying the entry-context flag on the methods route. */
     const val METHODS_ARG_FROM_SETTINGS: String = "fromSettings"
 
     /**
      * Route template: `payment/methods/{planKey}/{fromSettings}`.
      *
-     * `fromSettings` is a boolean string (`true` / `false`) — Compose Navigation reads it
-     * back via `NavType.BoolType`.
+     * The `fromSettings` segment is decoded with `NavType.BoolType`; the `planKey` segment
+     * is decoded with `NavType.StringType`.
      */
     const val METHODS: String =
         "payment/methods/{$METHODS_ARG_PLAN_KEY}/{$METHODS_ARG_FROM_SETTINGS}"
 
     /**
-     * Sentinel passed as `planKey` when the methods screen should resolve the active plan
-     * from `MembershipStore.currentPlanKey` (settings entry).
+     * Sentinel passed as `planKey` when the methods screen must resolve the active plan
+     * from the membership store instead of from the navigation argument. Used by the
+     * settings entry where the worker is already subscribed and the screen recaps the
+     * existing subscription rather than a freshly picked plan.
      */
     const val CURRENT_PLAN_SENTINEL: String = "current"
 
     /**
      * Builds a concrete methods route.
      *
-     * @param planKey stable [com.elysium.softwork.payment.membership.domain.model.MembershipPlan.key]
-     *   the worker just picked, or [CURRENT_PLAN_SENTINEL] when entering from settings.
-     * @param fromSettings `true` when reached from Profile → "Payment methods"; controls
-     *   the visibility of the "Cancel subscription" action.
+     * @param planKey stable plan identifier the worker just picked, or
+     *   [CURRENT_PLAN_SENTINEL] when entering from settings.
+     * @param fromSettings `true` when reached from the profile settings entry; controls
+     *   the visibility of the "Cancel subscription" action on the methods screen.
      */
     fun methods(planKey: String, fromSettings: Boolean): String =
         "payment/methods/$planKey/$fromSettings"
-    // endregion
 
-    // region New card
-    /** Add-card composer. The screen does not need to know about the entry context. */
+    /** Add-card composer. The screen itself does not need to know the entry context. */
     const val NEW_CARD: String = "payment/new-card"
-    // endregion
 
-    // region Success
+    /** Argument name carrying the plan key on the success route. */
     const val SUCCESS_ARG_PLAN_KEY: String = "planKey"
 
     /** Route template: `payment/success/{planKey}`. */
     const val SUCCESS: String = "payment/success/{$SUCCESS_ARG_PLAN_KEY}"
 
-    /** Builds a concrete success route for [planKey]. */
+    /**
+     * Builds a concrete success route.
+     *
+     * @param planKey stable plan identifier of the tier just paid for; persisted as the
+     *   active plan when the worker taps the success screen's primary action.
+     */
     fun success(planKey: String): String = "payment/success/$planKey"
-    // endregion
 }

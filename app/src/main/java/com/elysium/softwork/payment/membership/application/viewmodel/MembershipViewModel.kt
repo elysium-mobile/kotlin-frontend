@@ -179,7 +179,7 @@ class MembershipViewModel(private val store: MembershipStore) : ViewModel() {
     /**
      * Immediately cancels the active membership. The store clears
      * `KEY_HAS_MEMBERSHIP` / `KEY_CURRENT_PLAN` and emits the new state; the host Activity
-     * picks it up and unmounts the main shell in favour of the payment graph rooted at the
+     * picks it up and unmounts the main shell in favor of the payment graph rooted at the
      * selection screen. Card data is intentionally preserved by the store.
      */
     fun cancelSubscription() {

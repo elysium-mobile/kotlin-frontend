@@ -21,56 +21,52 @@ import com.elysium.softwork.payment.membership.data.store.MembershipStore
 import com.elysium.softwork.payment.membership.data.store.MembershipStoreImpl
 
 /**
- * Manual service locator. The locked stack does not include Hilt, so a single, explicit
- * locator owns the wiring of process-wide singletons: shared prefs, the Retrofit instance,
- * each context's WebService, and each context's Store implementation.
+ * Manual service locator that owns process-wide singletons (shared preferences, the
+ * Retrofit instance, per-context WebServices and Stores).
  *
- * Stores are exposed as their interface type ([AuthStore], [PostStore], …) so call sites
- * depend on the contract rather than the impl. New bounded contexts add their stores here
- * as they come online.
+ * Every singleton is exposed through `by lazy` so its construction cost — Retrofit proxy
+ * generation, the Room database open call, SharedPreferences disk read — is deferred to
+ * first access rather than paid on `Application.onCreate()`. Cold-start critical paths
+ * (authentication, the payment gate) therefore avoid touching the forum database, the
+ * forum WebServices, and any unrelated stores until the user actually navigates to them.
+ *
+ * Stores are exposed as their interface type so call sites depend on the contract rather
+ * than the implementation, and the captured [Context] is normalized to the application
+ * context up front to guarantee the locator can never retain an Activity reference.
  */
 class ServiceLocator(context: Context) {
 
-    // region Shared infrastructure
-    val sharedPrefsManager: SharedPrefsManager = SharedPrefsManager(context)
-    // endregion
+    private val appContext: Context = context.applicationContext
 
-    // region IAM
-    private val authWebService: AuthWebService =
+    val sharedPrefsManager: SharedPrefsManager by lazy { SharedPrefsManager(appContext) }
+
+    private val authWebService: AuthWebService by lazy {
         ApiClient.retrofit.create(AuthWebService::class.java)
+    }
 
-    val authStore: AuthStore = AuthStoreImpl(authWebService, sharedPrefsManager)
-    // endregion
+    val authStore: AuthStore by lazy { AuthStoreImpl(authWebService, sharedPrefsManager) }
 
-    // region Forum
-    private val forumDatabase: ForumDatabase = ForumDatabase.create(context)
+    private val forumDatabase: ForumDatabase by lazy { ForumDatabase.create(appContext) }
 
-    private val postWebService: PostWebService =
+    private val postWebService: PostWebService by lazy {
         ApiClient.retrofit.create(PostWebService::class.java)
+    }
 
-    val postStore: PostStore = PostStoreImpl(
-        dao = forumDatabase.postDao(),
-        webService = postWebService,
-    )
+    val postStore: PostStore by lazy {
+        PostStoreImpl(dao = forumDatabase.postDao(), webService = postWebService)
+    }
 
-    private val forumReportWebService: ForumReportWebService =
+    private val forumReportWebService: ForumReportWebService by lazy {
         ApiClient.retrofit.create(ForumReportWebService::class.java)
+    }
 
-    val forumReportStore: ForumReportStore = ForumReportStoreImpl(
-        webService = forumReportWebService
-    )
-    // endregion
+    val forumReportStore: ForumReportStore by lazy {
+        ForumReportStoreImpl(webService = forumReportWebService)
+    }
 
-    // region Feedback
-    val surveyStore: SurveyStore = SurveyStoreImpl(context.applicationContext)
-    // endregion
+    val surveyStore: SurveyStore by lazy { SurveyStoreImpl(appContext) }
 
-    // region Notifications
-    val notificationStore: NotificationStore =
-        NotificationStoreImpl(context.applicationContext)
-    // endregion
+    val notificationStore: NotificationStore by lazy { NotificationStoreImpl(appContext) }
 
-    // region Payment / Membership
-    val membershipStore: MembershipStore = MembershipStoreImpl(sharedPrefsManager)
-    // endregion
+    val membershipStore: MembershipStore by lazy { MembershipStoreImpl(sharedPrefsManager) }
 }

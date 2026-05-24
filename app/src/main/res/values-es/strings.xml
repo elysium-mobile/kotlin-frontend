@@ -64,8 +64,6 @@
     <string name="placeholder_forum_subtitle">Próximamente</string>
     <string name="placeholder_notifications_title">Notificaciones</string>
     <string name="placeholder_notifications_subtitle">Próximamente</string>
-    <string name="placeholder_membership_title">Membresía</string>
-    <string name="placeholder_membership_subtitle">Los detalles de la membresía aparecerán pronto</string>
     <string name="placeholder_surveys_title">Encuestas</string>
     <string name="placeholder_surveys_subtitle">Tus encuestas aparecerán aquí</string>
 

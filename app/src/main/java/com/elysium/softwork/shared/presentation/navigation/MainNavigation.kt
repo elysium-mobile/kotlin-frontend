@@ -36,6 +36,7 @@ import com.elysium.softwork.feedback.presentation.navigation.FeedbackRoutes
 import com.elysium.softwork.feedback.presentation.navigation.feedbackGraph
 import com.elysium.softwork.notifications.presentation.navigation.NotificationRoutes
 import com.elysium.softwork.notifications.presentation.navigation.notificationGraph
+import com.elysium.softwork.payment.membership.presentation.navigation.NoPaymentGraphExit
 import com.elysium.softwork.payment.membership.presentation.navigation.PaymentRoutes
 import com.elysium.softwork.payment.membership.presentation.navigation.paymentGraph
 import com.elysium.softwork.worker.forum.presentation.navigation.ForumRoutes
@@ -142,13 +143,13 @@ fun MainNavHost(
             // Payment routes mounted here so Profile → "Payment methods" stays on the
             // main back stack. Cancellation does not need to navigate — flipping the
             // membership flag in the store causes MainActivity to swap the host entirely.
-            paymentGraph(navController = navController, onExitToMainShell = NoOpExit)
+            paymentGraph(
+                navController = navController,
+                onExitToMainShell = NoPaymentGraphExit,
+            )
         }
     }
 }
-
-/** Hoisted no-op for the settings mount of `paymentGraph` to avoid per-recomposition allocation. */
-private val NoOpExit: () -> Unit = {}
 
 /**
  * Bottom navigation bar for the authenticated shell.

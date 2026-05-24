@@ -5,14 +5,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -31,18 +35,26 @@ import com.elysium.softwork.shared.presentation.theme.PrimaryNavy
 import com.elysium.softwork.shared.presentation.theme.PrimaryTeal
 
 /**
- * "Membership activated" confirmation screen.
+ * Membership-activation confirmation screen.
  *
- * Renders the SoftWork lockup, a large checkmark, the success title, and a primary
- * "Main menu" CTA. Tapping the CTA activates the membership in the store (flipping
- * `KEY_HAS_MEMBERSHIP` to `true` and persisting [planKey]) and then defers to
- * [onEnterMainShell], which lets the host Activity unmount the payment graph in favour of
- * the main app shell.
+ * Renders the brand mark, a large checkmark, a title and subtitle, and a bottom-pinned
+ * primary CTA. Tapping the CTA delegates to [MembershipViewModel.activateMembership]
+ * (which flips the persisted membership flag and stores [planKey] as the active plan)
+ * and then invokes [onEnterMainShell] for any non-navigational side effect the host
+ * wants to attach. The host above this composable typically observes the membership
+ * store's reactive flag and swaps to the main shell automatically.
  *
- * @param planKey stable [com.elysium.softwork.payment.membership.domain.model.MembershipPlan.key]
- *   the worker just paid for. Persisted as the active plan on activation.
- * @param onEnterMainShell invoked AFTER the activation call returns; the host swaps to
- *   `MainNavHost`.
+ * The bottom CTA band consumes the navigation-bar inset so the button always clears the
+ * system gesture pill on devices that render one, while still preserving the visual
+ * breathing room from the 24.dp bottom padding.
+ *
+ * @param planKey stable plan identifier of the tier just paid for. Persisted as the
+ *   active plan during activation.
+ * @param onEnterMainShell invoked after [MembershipViewModel.activateMembership] is
+ *   dispatched. The host typically swaps to the main shell via the membership-gate
+ *   observer; the callback exists for analytics or logging side effects.
+ * @param viewModel provider for the activation coroutine. Resolved through the manual
+ *   service locator via the factory exposed on the ViewModel companion.
  */
 @Composable
 fun PaymentSuccessScreen(
@@ -50,6 +62,13 @@ fun PaymentSuccessScreen(
     onEnterMainShell: () -> Unit,
     viewModel: MembershipViewModel = viewModel(factory = MembershipViewModel.Factory),
 ) {
+    val onActivate: () -> Unit = remember(viewModel, planKey, onEnterMainShell) {
+        {
+            viewModel.activateMembership(planKey = planKey)
+            onEnterMainShell()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -59,10 +78,9 @@ fun PaymentSuccessScreen(
     ) {
         Spacer(modifier = Modifier.height(48.dp))
 
-        // Brand mark sourced from the adaptive launcher foreground so the in-app branding
-        // matches the device launcher exactly. Rendered via `Image` (not `Icon`) and with
-        // NO `tint` parameter so the vector's native gradients and multi-colour fills
-        // survive — applying a tint here would collapse the asset to a single flat colour.
+        // Brand mark rendered through Image (not Icon) and without a tint so the vector's
+        // native multi-colour fills survive — a tint here would collapse the lockup to a
+        // single flat colour.
         Image(
             painter = painterResource(R.drawable.ic_launcher_foreground),
             contentDescription = null,
@@ -105,13 +123,15 @@ fun PaymentSuccessScreen(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        Box(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.navigationBars)
+                .padding(bottom = 24.dp),
+        ) {
             SoftWorkButton(
                 text = stringResource(R.string.payment_success_cta),
-                onClick = {
-                    viewModel.activateMembership(planKey = planKey)
-                    onEnterMainShell()
-                },
+                onClick = onActivate,
             )
         }
     }

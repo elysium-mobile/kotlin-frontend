@@ -64,8 +64,6 @@
     <string name="placeholder_forum_subtitle">Coming soon</string>
     <string name="placeholder_notifications_title">Notifications</string>
     <string name="placeholder_notifications_subtitle">Coming soon</string>
-    <string name="placeholder_membership_title">Membership</string>
-    <string name="placeholder_membership_subtitle">Membership details coming soon</string>
     <string name="placeholder_surveys_title">Surveys</string>
     <string name="placeholder_surveys_subtitle">Your surveys will appear here</string>
 
