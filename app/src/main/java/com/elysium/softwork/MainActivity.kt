@@ -7,7 +7,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -15,6 +14,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.elysium.softwork.iam.presentation.navigation.AuthNavHost
@@ -56,30 +56,32 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         setContent {
             SoftWorkTheme {
-                val app = remember { application as SoftWorkApplication }
-                val locator = app.serviceLocator
+                val locator = (application as SoftWorkApplication).serviceLocator
 
                 var isAuthenticated: Boolean by rememberSaveable {
                     mutableStateOf(locator.authStore.activeToken() != null)
                 }
-                val hasMembership: Boolean by locator.membershipStore.hasMembership.collectAsState()
+                val hasMembership: Boolean by locator.membershipStore
+                    .hasMembership
+                    .collectAsStateWithLifecycle()
+
+                val onAuthComplete = remember { { isAuthenticated = true } }
+                val onLogout = remember(locator) {
+                    {
+                        locator.authStore.clearSession()
+                        isAuthenticated = false
+                    }
+                }
+                val userName = stringResource(R.string.home_user_name_placeholder)
 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
                 ) {
                     when {
-                        !isAuthenticated -> AuthNavHost(
-                            onAuthComplete = { isAuthenticated = true },
-                        )
+                        !isAuthenticated -> AuthNavHost(onAuthComplete = onAuthComplete)
                         !hasMembership -> PaymentOnboardingHost()
-                        else -> MainNavHost(
-                            userName = stringResource(R.string.home_user_name_placeholder),
-                            onLogout = {
-                                locator.authStore.clearSession()
-                                isAuthenticated = false
-                            },
-                        )
+                        else -> MainNavHost(userName = userName, onLogout = onLogout)
                     }
                 }
             }

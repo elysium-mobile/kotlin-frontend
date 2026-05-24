@@ -1,8 +1,6 @@
 package com.elysium.softwork.shared.presentation.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -14,17 +12,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemColors
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -45,9 +43,7 @@ import com.elysium.softwork.worker.forum.presentation.navigation.forumGraph
 import com.elysium.softwork.shared.presentation.views.home.HomeScreen
 import com.elysium.softwork.shared.presentation.views.identity.ProtectedIdentityScreen
 import com.elysium.softwork.shared.presentation.views.profile.ProfileScreen
-import com.elysium.softwork.shared.presentation.theme.AccentDark
 import com.elysium.softwork.shared.presentation.theme.AccentMint
-import com.elysium.softwork.shared.presentation.theme.PrimaryNavy
 import com.elysium.softwork.shared.presentation.theme.PrimarySky
 
 /** Bottom-nav destination definition. Used both to render the bar and to declare routes. */
@@ -104,7 +100,14 @@ fun MainNavHost(
                     onOpenForums = { navController.navigateToTab(ForumRoutes.FEED) },
                     onOpenAssistant = { /* AI assistant entry point is not yet implemented. */ },
                     onOpenSurveys = { navController.navigate(FeedbackRoutes.PENDING_SURVEYS) },
-                    onOpenMembership = { navController.navigate(MainRoutes.MEMBERSHIP) },
+                    onOpenMembership = {
+                        navController.navigate(
+                            PaymentRoutes.methods(
+                                planKey = PaymentRoutes.CURRENT_PLAN_SENTINEL,
+                                fromSettings = true,
+                            ),
+                        )
+                    },
                 )
             }
             composable(MainRoutes.PROFILE) {
@@ -134,24 +137,18 @@ fun MainNavHost(
                 )
             }
             feedbackGraph(navController = navController)
-            composable(MainRoutes.MEMBERSHIP) {
-                PlaceholderScreen(
-                    title = stringResource(R.string.placeholder_membership_title),
-                    subtitle = stringResource(R.string.placeholder_membership_subtitle),
-                )
-            }
             forumGraph(navController = navController, userName = userName)
             notificationGraph(navController = navController)
             // Payment routes mounted here so Profile → "Payment methods" stays on the
             // main back stack. Cancellation does not need to navigate — flipping the
             // membership flag in the store causes MainActivity to swap the host entirely.
-            paymentGraph(
-                navController = navController,
-                onExitToMainShell = { /* unused on the settings mount. */ },
-            )
+            paymentGraph(navController = navController, onExitToMainShell = NoOpExit)
         }
     }
 }
+
+/** Hoisted no-op for the settings mount of `paymentGraph` to avoid per-recomposition allocation. */
+private val NoOpExit: () -> Unit = {}
 
 /**
  * Bottom navigation bar for the authenticated shell.
@@ -176,47 +173,85 @@ fun MainNavHost(
 @Composable
 private fun SoftWorkBottomBar(navController: NavHostController) {
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute: String? = backStackEntry?.destination?.route
+
+    // Walk the destination hierarchy exactly once per nav event and snapshot every active
+    // route into a Set so the per-item selected check below is O(1) instead of an O(depth)
+    // traversal repeated for each destination.
+    val activeRoutes: Set<String> = remember(backStackEntry) {
+        backStackEntry?.destination?.hierarchy
+            ?.mapNotNull { it.route }
+            ?.toSet()
+            .orEmpty()
+    }
+
+    val itemColors = NavigationBarItemDefaults.colors(
+        selectedIconColor = PrimarySky,
+        selectedTextColor = PrimarySky,
+        unselectedIconColor = AccentMint,
+        unselectedTextColor = AccentMint,
+        indicatorColor = Color.Transparent,
+    )
 
     NavigationBar(
         modifier = Modifier
             .windowInsetsPadding(WindowInsets.navigationBars)
             .height(72.dp),
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
         windowInsets = WindowInsets(0),
     ) {
         BottomDestinations.forEach { destination ->
-            val selected: Boolean = backStackEntry?.destination?.hierarchy?.any { it.route == destination.route } == true ||
-                currentRoute == destination.route
-
-            NavigationBarItem(
-                selected = selected,
-                onClick = { navController.navigateToTab(destination.route) },
-                icon = {
-                    Icon(
-                        painter = painterResource(destination.iconRes),
-                        contentDescription = stringResource(destination.contentDescriptionRes),
-                        modifier = Modifier.size(22.dp),
-                    )
-                },
-                label = {
-                    Text(
-                        text = stringResource(destination.labelRes),
-                        style = MaterialTheme.typography.labelSmall,
-                    )
-                },
-                alwaysShowLabel = false,
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = PrimarySky,
-                    selectedTextColor = PrimarySky,
-                    unselectedIconColor = AccentMint,
-                    unselectedTextColor = AccentMint,
-                    indicatorColor = Color.Transparent,
-                ),
+            BottomNavItem(
+                destination = destination,
+                selected = destination.route in activeRoutes,
+                navController = navController,
+                colors = itemColors,
             )
         }
     }
+}
+
+/**
+ * One bottom-bar entry. Extracted from [SoftWorkBottomBar] so the per-item slot lambdas
+ * (`icon`, `label`, `onClick`) can be hoisted by [remember] keyed on the stable
+ * [destination] reference — preventing fresh lambda allocations on every recomposition
+ * of the bar and giving Compose's smart-skipping a chance to bypass unchanged items.
+ */
+@Composable
+private fun RowScope.BottomNavItem(
+    destination: BottomDestination,
+    selected: Boolean,
+    navController: NavHostController,
+    colors: NavigationBarItemColors,
+) {
+    val onClick = remember(destination.route, navController) {
+        { navController.navigateToTab(destination.route) }
+    }
+    val icon: @Composable () -> Unit = remember(destination) {
+        {
+            Icon(
+                painter = painterResource(destination.iconRes),
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+    }
+    val label: @Composable () -> Unit = remember(destination) {
+        {
+            Text(
+                text = stringResource(destination.labelRes),
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
+    }
+    NavigationBarItem(
+        selected = selected,
+        onClick = onClick,
+        icon = icon,
+        label = label,
+        alwaysShowLabel = false,
+        colors = colors,
+    )
 }
 
 /**
@@ -231,26 +266,3 @@ private fun NavHostController.navigateToTab(route: String) {
     }
 }
 
-@Composable
-private fun PlaceholderScreen(title: String, subtitle: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = PrimaryNavy,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = AccentDark,
-            )
-        }
-    }
-}

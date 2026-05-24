@@ -72,9 +72,8 @@ fun AuthNavHost(
             route = AuthRoutes.SUCCESS,
             arguments = listOf(navArgument(AuthRoutes.SUCCESS_ARG_KIND) { type = NavType.StringType }),
         ) { backStackEntry ->
-            val kind: SuccessKind = backStackEntry.arguments
-                ?.getString(AuthRoutes.SUCCESS_ARG_KIND)
-                ?.let { runCatching { SuccessKind.valueOf(it) }.getOrNull() }
+            val raw: String? = backStackEntry.arguments?.getString(AuthRoutes.SUCCESS_ARG_KIND)
+            val kind: SuccessKind = SuccessKind.entries.firstOrNull { it.name == raw }
                 ?: SuccessKind.LOGIN
 
             val title: String = stringResource(
