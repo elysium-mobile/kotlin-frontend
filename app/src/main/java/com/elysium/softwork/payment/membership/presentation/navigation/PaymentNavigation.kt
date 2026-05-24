@@ -1,6 +1,9 @@
 package com.elysium.softwork.payment.membership.presentation.navigation
 
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -34,10 +37,22 @@ val NoPaymentGraphExit: () -> Unit = {}
  * lacks an active membership.
  *
  * Owns its own [NavHostController]; the navigation back stack therefore belongs
- * exclusively to the onboarding flow. The host occupies the full window via
- * [Modifier.fillMaxSize]; system-bar insets are consumed by individual screens at the
- * precise boundary where they matter (the status-bar gradient on success, the
- * navigation-bar inset on bottom-pinned CTAs).
+ * exclusively to the onboarding flow.
+ *
+ * Window-inset strategy: `Modifier.windowInsetsPadding(WindowInsets.statusBars)` is
+ * applied **at this host level** — once, on the structural root NavHost — so every screen
+ * routed under it (`MembershipSelectionScreen`, `PaymentMethodsScreen`, `NewCardScreen`,
+ * `PaymentSuccessScreen`) lands below the status bar / notch / camera cutout without any
+ * per-screen duplication. `windowInsetsPadding` also marks the status-bar inset as
+ * consumed, so any inner modifier that asks for `systemBars` (e.g. a bottom-pinned CTA
+ * that pads against `navigationBars`) only contributes its remaining bottom-edge padding
+ * and does not double-pad the top. Inset measurement runs in a single parent layout pass
+ * rather than per-screen.
+ *
+ * Background continuity is preserved because the hosting `MainActivity` wraps the entire
+ * Compose tree in a `Surface` coloured from `MaterialTheme.colorScheme.background`; the
+ * area reserved for the status-bar inset draws that same background through the
+ * transparent system bar, so no hardcoded fill is required here.
  *
  * @param onExitToMainShell invoked from the success screen's primary action. The host
  *   above this composable typically gates app navigation on the membership store's
@@ -50,7 +65,9 @@ fun PaymentOnboardingHost(onExitToMainShell: () -> Unit) {
     NavHost(
         navController = navController,
         startDestination = PaymentRoutes.SELECTION,
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.statusBars),
     ) {
         paymentGraph(navController = navController, onExitToMainShell = onExitToMainShell)
     }

@@ -1,6 +1,11 @@
 package com.elysium.softwork.iam.presentation.navigation
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -27,6 +32,15 @@ import com.elysium.softwork.shared.utils.discriminators.SuccessKind
  * Route catalog lives in [AuthRoutes]; the [SuccessKind] discriminator that drives the
  * `auth/success/{kind}` nav-arg lives in `shared/utils/discriminators/`.
  *
+ * Window-inset strategy: `Modifier.windowInsetsPadding(WindowInsets.statusBars)` is
+ * applied **at this host level** — once, on the structural root — so every screen the host
+ * mounts lands below the status bar / notch / camera cutout without any per-screen
+ * duplication.  `windowInsetsPadding` also marks the status-bar inset as consumed, so any
+ * inner modifier that asks for `systemBars` (e.g. each screen's `systemBars.union(ime)`
+ * for IME-aware forms) sees the top portion as already handled and only contributes the
+ * remaining bottom navigation-bar / IME padding. This avoids double-padding the top and
+ * keeps the inset measurement on a single parent layout pass.
+ *
  * @param onAuthComplete invoked when the user reaches the success screen and taps the
  *   primary button. The hosting graph routes to the main app shell from here.
  */
@@ -35,7 +49,13 @@ fun AuthNavHost(
     onAuthComplete: () -> Unit,
     navController: NavHostController = rememberNavController(),
 ) {
-    NavHost(navController = navController, startDestination = AuthRoutes.LOGIN) {
+    NavHost(
+        navController = navController,
+        startDestination = AuthRoutes.LOGIN,
+        modifier = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.statusBars),
+    ) {
 
         composable(AuthRoutes.LOGIN) {
             LoginScreen(
