@@ -649,6 +649,113 @@ hook.
   No real network call, no idempotency key, no retry. Replace the body when
   `/subscriptions` is live.
 
+### ✅ Phase 8 (in progress) — Feedback / FlowWork AI chat
+
+- **Domain**: [`ChatMessage`](app/src/main/java/com/elysium/softwork/feedback/domain/model/ChatMessage.kt)
+  data class (`id` / `content` / `isFromUser` / `timestamp`) annotated with
+  `@SerializedName` per the bean shortcut. Drives bubble alignment and color in the
+  chat feed.
+- **Data**: `FeedbackStore` interface in `feedback/data/store/` + mocked
+  `FeedbackStoreImpl`. Conversation lives in a `MutableStateFlow<List<ChatMessage>>`
+  for the lifetime of the process (no persistence yet). `send(content)` appends the
+  worker's message, suspends 1.2 s to simulate an AI round-trip, then appends a
+  templated reply deterministically chosen from a five-entry `RESPONSE_TEMPLATES`
+  list via a hash of the prompt. Replace the body of `send` with a real Retrofit
+  call when the backend is live — the contract does not need to change.
+- **Application**: `AiChatViewModel` exposes
+  `messages: StateFlow<List<ChatMessage>>` (proxied straight from
+  `FeedbackStore.conversation`) and a transient `isSending: StateFlow<Boolean>` flag
+  that gates the send button and drives the "typing" row. Standard `Factory`
+  companion pulls `feedbackStore` from `ServiceLocator` via `CreationExtras`.
+- **Presentation**: `AiChatScreen` under `feedback/presentation/views/chat/`.
+  - **Header** — `ChatTopBar` with a back arrow and the "FlowWork AI" title in
+    PrimaryNavy bold 20.sp. Applies
+    `Modifier.windowInsetsPadding(WindowInsets.statusBars)` so the title clears any
+    notch / cutout. `MainNavHost` calls `Modifier.consumeWindowInsets(padding)` on
+    its NavHost so this same modifier resolves to zero inside the bottom-bar
+    Scaffold (no double padding) but still pads correctly if the screen is ever
+    mounted standalone.
+  - **Feed** — `LazyColumn` with `rememberLazyListState`, mandatory item key
+    `key = { it.id }`, and a `LaunchedEffect(messages.size, isSending)` that
+    `scrollToItem`-s to the last entry whenever the log grows. User bubbles align
+    trailing with a solid `PrimarySky` fill and white text; AI bubbles align
+    leading with a white fill, soft `shadowElevation = 1.dp`, and `AccentDark`
+    text. Both cap at `widthIn(max = 280.dp)`. A typing indicator row appears
+    while `isSending = true`. When the conversation is empty, an `EmptyState`
+    composable centred under the launcher-foreground brand mark prompts the
+    worker to start chatting.
+  - **Composer** — rounded white field hosting a leading `Image` of
+    `R.drawable.ic_launcher_foreground` (36.dp, `Image` not `Icon` so native
+    gradients survive), a single-to-four-line `BasicTextField` with an IME
+    `Send` action wired to the send handler, and a circular send button that
+    flips between `PrimarySky` (enabled) and `AccentMint` (disabled). The Row
+    chains `imePadding()` then `navigationBarsPadding()` so the composer floats
+    above the keyboard when open and above the gesture pill / button bar when
+    closed.
+- **Navigation**: `FeedbackRoutes.AI_CHAT = "feedback/ai_chat"` and a `composable`
+  registered inside `feedbackGraph` (push/pop transitions reuse the shared
+  `PushEnter / PushExit / PushPopEnter / PushPopExit` set). `MainNavHost` now
+  observes the current back-stack entry and suppresses `SoftWorkBottomBar` whenever
+  the active route is in the `ImmersiveRoutes` set (currently
+  `FeedbackRoutes.AI_CHAT`), so the chat surface owns the full vertical viewport
+  and the composer's `navigationBarsPadding()` does not stack on the bottom bar's
+  own inset consumption. `HomeScreen`'s "AI Assistant" action card
+  (`onOpenAssistant`) now navigates to the chat route.
+- **Wiring**: `ServiceLocator` exposes
+  `val feedbackStore: FeedbackStore by lazy { FeedbackStoreImpl() }`. No
+  constructor argument needed — the mock is fully self-contained.
+- **i18n**: six new `ai_chat_*` keys in both `values/strings.xml` and
+  `values-es/strings.xml`. `ai_chat_title` carries `translatable="false"` because
+  "FlowWork AI" is a brand name.
+
+#### Phase 8 caveats
+
+- The conversation log is **in memory only**. Cold start wipes it. Persist through
+  Room or a real `FeedbackWebService` before shipping.
+- `generateAiReply` is a five-template hash cycle. Plenty for demos and
+  screenshots; obviously not a real AI integration.
+- The screen is immersive (no bottom navigation bar). When other surfaces need
+  the same treatment, append their route to `MainNavigation.ImmersiveRoutes`.
+
+### Top-level rendering and routing — `MainActivity` contract
+
+`MainActivity` is structured around three guarantees that any future change to
+the cold-start path must preserve:
+
+1. **`enableEdgeToEdge()` runs as the very first statement of `onCreate`** —
+   before `super.onCreate(savedInstanceState)`. This installs the transparent
+   system-bar configuration on the window decor before the platform attaches the
+   Activity's content view. Calling it later allows the platform to paint one
+   frame with the manifest theme's opaque status / navigation bar over a
+   yet-undrawn Compose tree, which is perceived as a black flash on launch.
+2. **`Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background)`
+   is the immediate child of `SoftWorkTheme`** — not nested behind state
+   collectors. The brand background paints on the very first frame even if the
+   downstream routing composable takes a frame to attach its `StateFlow`
+   collectors.
+3. **All routing logic lives inside a private `AppRoot()` composable that the
+   `Surface` hosts** — not inline in `setContent`. This means:
+   - The `ServiceLocator` lookup is held on a `private val locator: ServiceLocator
+     by lazy { ... }` Activity field, not re-resolved on every recomposition.
+   - The seeded `SharedPreferences` read used to derive the initial value of the
+     `rememberSaveable` auth flag is not on the recomposition hot path.
+   - The `collectAsStateWithLifecycle` collector on the membership flow attaches
+     inside `AppRoot`'s first composition, after the outer `Surface` has already
+     been measured and painted.
+   - The three-way `when` routes between `AuthNavHost`,
+     `PaymentOnboardingHost`, and `MainNavHost`. The routing flags are never
+     mutated from inside a composable body — only from lambdas (`onAuthComplete`,
+     `onLogout`) and from `LaunchedEffect` blocks scheduled by
+     `PaymentSuccessScreen` after activation. **No recomposition loop is possible
+     here.**
+
+The manifest theme (`Theme.SoftWork` in `res/values/themes.xml`) pins
+`android:windowBackground` and `android:colorBackground` to white. The SoftWork
+brand uses a single light visual treatment regardless of system dark mode, so
+the platform-painted background matches the Compose-painted background from the
+very first frame onward. This pin is what prevents a "black until Compose
+paints" window on devices in system dark mode.
+
 ### 🔜 Next — Phase (IMPLEMENTATION WITH REAL BACKEND API)
 
 - Comment domain + store + WebService backing `ThreadScreen`.

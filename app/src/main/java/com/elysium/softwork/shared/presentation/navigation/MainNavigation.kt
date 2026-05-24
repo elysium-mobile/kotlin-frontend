@@ -2,6 +2,7 @@ package com.elysium.softwork.shared.presentation.navigation
 
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
@@ -63,6 +64,16 @@ private val BottomDestinations: List<BottomDestination> = listOf(
 )
 
 /**
+ * Routes that hide the persistent bottom navigation bar so the destination owns the full
+ * vertical viewport. The AI chat surface needs the full height for its bubble feed and
+ * its IME-aware composer; sharing the screen with the bottom bar would either compress
+ * the conversation or stack the composer above the bar.
+ */
+private val ImmersiveRoutes: Set<String> = setOf(
+    FeedbackRoutes.AI_CHAT,
+)
+
+/**
  * Authenticated shell. Owns the bottom navigation bar and nests a [NavHost] for the four
  * tabs (Home, Forum, Notifications, Profile) plus the auxiliary destinations reached from
  * Home action cards and Profile rows.
@@ -77,8 +88,16 @@ fun MainNavHost(
     onLogout: () -> Unit,
     navController: NavHostController = rememberNavController(),
 ) {
+    // Track the current destination so the bottom bar can be suppressed on immersive
+    // routes (currently only the AI chat surface) without restructuring the host graph.
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute: String? = currentBackStackEntry?.destination?.route
+    val showBottomBar: Boolean = currentRoute !in ImmersiveRoutes
+
     Scaffold(
-        bottomBar = { SoftWorkBottomBar(navController = navController) },
+        bottomBar = {
+            if (showBottomBar) SoftWorkBottomBar(navController = navController)
+        },
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         NavHost(
@@ -86,7 +105,15 @@ fun MainNavHost(
             startDestination = MainRoutes.HOME,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .padding(padding)
+                // `consumeWindowInsets(padding)` marks the system bar insets that the
+                // Scaffold already reserved as fully handled. Child screens that apply
+                // `Modifier.windowInsetsPadding(WindowInsets.statusBars)` themselves
+                // therefore resolve to zero additional padding inside this host, while
+                // those same screens still pad correctly when mounted standalone (for
+                // example, via the payment onboarding host). The pattern keeps the
+                // status-bar contract identical for both mount paths.
+                .consumeWindowInsets(padding),
         ) {
             composable(
                 route = MainRoutes.HOME,
@@ -105,7 +132,7 @@ fun MainNavHost(
                         navController.navigate(ForumRoutes.REPORTS_STATUS)
                     },
                     onOpenForums = { navController.navigateToTab(ForumRoutes.FEED) },
-                    onOpenAssistant = { /* AI assistant entry point is not yet implemented. */ },
+                    onOpenAssistant = { navController.navigate(FeedbackRoutes.AI_CHAT) },
                     onOpenSurveys = { navController.navigate(FeedbackRoutes.PENDING_SURVEYS) },
                     onOpenMembership = {
                         navController.navigate(

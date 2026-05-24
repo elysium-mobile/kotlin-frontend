@@ -7,4 +7,7 @@ package com.elysium.softwork.feedback.presentation.navigation
  */
 object FeedbackRoutes {
     const val PENDING_SURVEYS: String = "feedback/pending_surveys"
+
+    /** FlowWork AI chat surface reached from the Home action card. */
+    const val AI_CHAT: String = "feedback/ai_chat"
 }

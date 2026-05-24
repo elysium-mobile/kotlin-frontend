@@ -221,6 +221,14 @@
     <string name="notif_message_title">Mensaje</string>
     <string name="notif_message_desc">Tienes un nuevo mensaje de RRHH</string>
 
+    <!-- Feedback: chat con la IA -->
+    <string name="ai_chat_title" translatable="false">FlowWork AI</string>
+    <string name="ai_chat_input_placeholder">Escribe un mensaje</string>
+    <string name="ai_chat_send_cd">Enviar</string>
+    <string name="ai_chat_typing">Escribiendo…</string>
+    <string name="ai_chat_empty_title">FlowWork AI está aquí para ti</string>
+    <string name="ai_chat_empty_subtitle">Comparte una observación, una preocupación o una pregunta. Yo me encargo de que tu retroalimentación llegue al equipo correcto.</string>
+
     <!-- Feedback: encuestas pendientes -->
     <string name="surveys_title">Encuestas pendientes</string>
     <string name="survey_start_button">Comenzar</string>

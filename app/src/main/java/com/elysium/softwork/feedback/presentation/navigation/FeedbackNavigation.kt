@@ -3,6 +3,7 @@ package com.elysium.softwork.feedback.presentation.navigation
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
+import com.elysium.softwork.feedback.presentation.views.chat.AiChatScreen
 import com.elysium.softwork.feedback.presentation.views.surveys.PendingSurveysScreen
 import com.elysium.softwork.shared.presentation.navigation.PushEnter
 import com.elysium.softwork.shared.presentation.navigation.PushExit
@@ -30,5 +31,15 @@ fun NavGraphBuilder.feedbackGraph(navController: NavHostController) {
             onBack = { navController.popBackStack() },
             onStartSurvey = { /* The answer flow is not yet wired. */ },
         )
+    }
+
+    composable(
+        route = FeedbackRoutes.AI_CHAT,
+        enterTransition = PushEnter,
+        exitTransition = PushExit,
+        popEnterTransition = PushPopEnter,
+        popExitTransition = PushPopExit,
+    ) {
+        AiChatScreen(onBack = { navController.popBackStack() })
     }
 }
