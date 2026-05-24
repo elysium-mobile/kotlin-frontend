@@ -88,7 +88,13 @@ fun MainNavHost(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            composable(MainRoutes.HOME) {
+            composable(
+                route = MainRoutes.HOME,
+                enterTransition = TabEnter,
+                exitTransition = TabExit,
+                popEnterTransition = TabEnter,
+                popExitTransition = TabExit,
+            ) {
                 HomeScreen(
                     userName = userName,
                     onReportIncident = {
@@ -111,7 +117,13 @@ fun MainNavHost(
                     },
                 )
             }
-            composable(MainRoutes.PROFILE) {
+            composable(
+                route = MainRoutes.PROFILE,
+                enterTransition = TabEnter,
+                exitTransition = TabExit,
+                popEnterTransition = TabEnter,
+                popExitTransition = TabExit,
+            ) {
                 ProfileScreen(
                     onEditProfile = { /* Edit-profile flow is not yet implemented. */ },
                     onLogout = onLogout,
@@ -131,7 +143,13 @@ fun MainNavHost(
                     },
                 )
             }
-            composable(MainRoutes.PROTECTED_IDENTITY) {
+            composable(
+                route = MainRoutes.PROTECTED_IDENTITY,
+                enterTransition = PushEnter,
+                exitTransition = PushExit,
+                popEnterTransition = PushPopEnter,
+                popExitTransition = PushPopExit,
+            ) {
                 ProtectedIdentityScreen(
                     onBack = { navController.popBackStack() },
                     onSaved = { navController.popBackStack() },

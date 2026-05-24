@@ -5,6 +5,12 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.elysium.softwork.shared.presentation.navigation.PushEnter
+import com.elysium.softwork.shared.presentation.navigation.PushExit
+import com.elysium.softwork.shared.presentation.navigation.PushPopEnter
+import com.elysium.softwork.shared.presentation.navigation.PushPopExit
+import com.elysium.softwork.shared.presentation.navigation.TabEnter
+import com.elysium.softwork.shared.presentation.navigation.TabExit
 import com.elysium.softwork.worker.forum.presentation.views.feed.ForumScreen
 import com.elysium.softwork.worker.forum.presentation.views.newpost.NewPostScreen
 import com.elysium.softwork.worker.forum.presentation.views.report.ForumReportScreen
@@ -23,7 +29,13 @@ import com.elysium.softwork.worker.forum.presentation.views.thread.ThreadScreen
  *   the non-anonymous identity rendering. Lifted from `MainNavHost`.
  */
 fun NavGraphBuilder.forumGraph(navController: NavHostController, userName: String) {
-    composable(ForumRoutes.FEED) {
+    composable(
+        route = ForumRoutes.FEED,
+        enterTransition = TabEnter,
+        exitTransition = TabExit,
+        popEnterTransition = TabEnter,
+        popExitTransition = TabExit,
+    ) {
         ForumScreen(
             onNewPost = { navController.navigate(ForumRoutes.NEW_POST) },
             onOpenThread = { postId -> navController.navigate(ForumRoutes.thread(postId)) },
@@ -31,7 +43,13 @@ fun NavGraphBuilder.forumGraph(navController: NavHostController, userName: Strin
         )
     }
 
-    composable(ForumRoutes.NEW_POST) {
+    composable(
+        route = ForumRoutes.NEW_POST,
+        enterTransition = PushEnter,
+        exitTransition = PushExit,
+        popEnterTransition = PushPopEnter,
+        popExitTransition = PushPopExit,
+    ) {
         NewPostScreen(
             userName = userName,
             onClose = { navController.popBackStack() },
@@ -44,6 +62,10 @@ fun NavGraphBuilder.forumGraph(navController: NavHostController, userName: Strin
         arguments = listOf(
             navArgument(ForumRoutes.THREAD_ARG_POST_ID) { type = NavType.StringType },
         ),
+        enterTransition = PushEnter,
+        exitTransition = PushExit,
+        popEnterTransition = PushPopEnter,
+        popExitTransition = PushPopExit,
     ) { backStackEntry ->
         val postId: String = backStackEntry.arguments
             ?.getString(ForumRoutes.THREAD_ARG_POST_ID)
@@ -61,6 +83,10 @@ fun NavGraphBuilder.forumGraph(navController: NavHostController, userName: Strin
         arguments = listOf(
             navArgument(ForumRoutes.REPORT_ARG_POST_ID) { type = NavType.StringType },
         ),
+        enterTransition = PushEnter,
+        exitTransition = PushExit,
+        popEnterTransition = PushPopEnter,
+        popExitTransition = PushPopExit,
     ) { backStackEntry ->
         val postId: String = backStackEntry.arguments
             ?.getString(ForumRoutes.REPORT_ARG_POST_ID)
@@ -71,7 +97,13 @@ fun NavGraphBuilder.forumGraph(navController: NavHostController, userName: Strin
         )
     }
 
-    composable(ForumRoutes.REPORTS_STATUS) {
+    composable(
+        route = ForumRoutes.REPORTS_STATUS,
+        enterTransition = PushEnter,
+        exitTransition = PushExit,
+        popEnterTransition = PushPopEnter,
+        popExitTransition = PushPopExit,
+    ) {
         ReportsStatusScreen(
             onBack = { navController.popBackStack() },
         )

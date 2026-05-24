@@ -4,6 +4,10 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import com.elysium.softwork.feedback.presentation.views.surveys.PendingSurveysScreen
+import com.elysium.softwork.shared.presentation.navigation.PushEnter
+import com.elysium.softwork.shared.presentation.navigation.PushExit
+import com.elysium.softwork.shared.presentation.navigation.PushPopEnter
+import com.elysium.softwork.shared.presentation.navigation.PushPopExit
 
 /**
  * Registers the Feedback routes inside an existing [NavGraphBuilder]. Invoked from the host
@@ -15,7 +19,13 @@ import com.elysium.softwork.feedback.presentation.views.surveys.PendingSurveysSc
  * @param navController controller used to build navigate / popBackStack lambdas.
  */
 fun NavGraphBuilder.feedbackGraph(navController: NavHostController) {
-    composable(FeedbackRoutes.PENDING_SURVEYS) {
+    composable(
+        route = FeedbackRoutes.PENDING_SURVEYS,
+        enterTransition = PushEnter,
+        exitTransition = PushExit,
+        popEnterTransition = PushPopEnter,
+        popExitTransition = PushPopExit,
+    ) {
         PendingSurveysScreen(
             onBack = { navController.popBackStack() },
             onStartSurvey = { /* The answer flow is not yet wired. */ },

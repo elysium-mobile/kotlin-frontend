@@ -4,6 +4,8 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import com.elysium.softwork.notifications.presentation.views.feed.NotificationsScreen
+import com.elysium.softwork.shared.presentation.navigation.TabEnter
+import com.elysium.softwork.shared.presentation.navigation.TabExit
 
 /**
  * Registers the Notifications routes inside an existing [NavGraphBuilder]. Invoked from
@@ -16,7 +18,13 @@ import com.elysium.softwork.notifications.presentation.views.feed.NotificationsS
  *   for future destinations (e.g. tapping a notification → context-specific deep-link).
  */
 fun NavGraphBuilder.notificationGraph(navController: NavHostController) {
-    composable(NotificationRoutes.NOTIFICATIONS_FEED) {
+    composable(
+        route = NotificationRoutes.NOTIFICATIONS_FEED,
+        enterTransition = TabEnter,
+        exitTransition = TabExit,
+        popEnterTransition = TabEnter,
+        popExitTransition = TabExit,
+    ) {
         NotificationsScreen(
             onNotificationClick = { /* Per-type deep-link routing is not yet wired. */ },
         )

@@ -13,6 +13,10 @@ import com.elysium.softwork.iam.presentation.views.login.LoginScreen
 import com.elysium.softwork.iam.presentation.views.register.RegisterGoogleScreen
 import com.elysium.softwork.iam.presentation.views.register.RegisterScreen
 import com.elysium.softwork.iam.presentation.views.success.AuthSuccessScreen
+import com.elysium.softwork.shared.presentation.navigation.PushEnter
+import com.elysium.softwork.shared.presentation.navigation.PushExit
+import com.elysium.softwork.shared.presentation.navigation.PushPopEnter
+import com.elysium.softwork.shared.presentation.navigation.PushPopExit
 import com.elysium.softwork.shared.utils.discriminators.SuccessKind
 
 /**
@@ -46,7 +50,13 @@ fun AuthNavHost(
             )
         }
 
-        composable(AuthRoutes.REGISTER) {
+        composable(
+            route = AuthRoutes.REGISTER,
+            enterTransition = PushEnter,
+            exitTransition = PushExit,
+            popEnterTransition = PushPopEnter,
+            popExitTransition = PushPopExit,
+        ) {
             RegisterScreen(
                 onBack = { navController.popBackStack() },
                 onRegisterSuccess = {
@@ -57,7 +67,13 @@ fun AuthNavHost(
             )
         }
 
-        composable(AuthRoutes.REGISTER_GOOGLE) {
+        composable(
+            route = AuthRoutes.REGISTER_GOOGLE,
+            enterTransition = PushEnter,
+            exitTransition = PushExit,
+            popEnterTransition = PushPopEnter,
+            popExitTransition = PushPopExit,
+        ) {
             RegisterGoogleScreen(
                 onBack = { navController.popBackStack() },
                 onRegisterSuccess = {
@@ -71,6 +87,10 @@ fun AuthNavHost(
         composable(
             route = AuthRoutes.SUCCESS,
             arguments = listOf(navArgument(AuthRoutes.SUCCESS_ARG_KIND) { type = NavType.StringType }),
+            enterTransition = PushEnter,
+            exitTransition = PushExit,
+            popEnterTransition = PushPopEnter,
+            popExitTransition = PushPopExit,
         ) { backStackEntry ->
             val raw: String? = backStackEntry.arguments?.getString(AuthRoutes.SUCCESS_ARG_KIND)
             val kind: SuccessKind = SuccessKind.entries.firstOrNull { it.name == raw }

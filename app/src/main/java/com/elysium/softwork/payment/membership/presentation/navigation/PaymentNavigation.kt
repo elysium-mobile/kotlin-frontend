@@ -15,6 +15,10 @@ import com.elysium.softwork.payment.membership.presentation.views.methods.Paymen
 import com.elysium.softwork.payment.membership.presentation.views.newcard.NewCardScreen
 import com.elysium.softwork.payment.membership.presentation.views.selection.MembershipSelectionScreen
 import com.elysium.softwork.payment.membership.presentation.views.success.PaymentSuccessScreen
+import com.elysium.softwork.shared.presentation.navigation.PushEnter
+import com.elysium.softwork.shared.presentation.navigation.PushExit
+import com.elysium.softwork.shared.presentation.navigation.PushPopEnter
+import com.elysium.softwork.shared.presentation.navigation.PushPopExit
 
 /**
  * Process-stable no-op callback shared by callers of [paymentGraph] that do not need a
@@ -75,7 +79,13 @@ fun NavGraphBuilder.paymentGraph(
     navController: NavHostController,
     onExitToMainShell: () -> Unit,
 ) {
-    composable(PaymentRoutes.SELECTION) {
+    composable(
+        route = PaymentRoutes.SELECTION,
+        enterTransition = PushEnter,
+        exitTransition = PushExit,
+        popEnterTransition = PushPopEnter,
+        popExitTransition = PushPopExit,
+    ) {
         val onPlanSelected: (String) -> Unit = remember(navController) {
             { planKey ->
                 navController.navigate(
@@ -92,6 +102,10 @@ fun NavGraphBuilder.paymentGraph(
             navArgument(PaymentRoutes.METHODS_ARG_PLAN_KEY) { type = NavType.StringType },
             navArgument(PaymentRoutes.METHODS_ARG_FROM_SETTINGS) { type = NavType.BoolType },
         ),
+        enterTransition = PushEnter,
+        exitTransition = PushExit,
+        popEnterTransition = PushPopEnter,
+        popExitTransition = PushPopExit,
     ) { backStackEntry ->
         val args = backStackEntry.arguments
         val planKey: String = args?.getString(PaymentRoutes.METHODS_ARG_PLAN_KEY).orEmpty()
@@ -119,7 +133,13 @@ fun NavGraphBuilder.paymentGraph(
         )
     }
 
-    composable(PaymentRoutes.NEW_CARD) {
+    composable(
+        route = PaymentRoutes.NEW_CARD,
+        enterTransition = PushEnter,
+        exitTransition = PushExit,
+        popEnterTransition = PushPopEnter,
+        popExitTransition = PushPopExit,
+    ) {
         val onBack: () -> Unit = remember(navController) { { navController.popBackStack() } }
         val onCardAdded: () -> Unit = remember(navController) { { navController.popBackStack() } }
         NewCardScreen(onBack = onBack, onCardAdded = onCardAdded)
@@ -130,6 +150,10 @@ fun NavGraphBuilder.paymentGraph(
         arguments = listOf(
             navArgument(PaymentRoutes.SUCCESS_ARG_PLAN_KEY) { type = NavType.StringType },
         ),
+        enterTransition = PushEnter,
+        exitTransition = PushExit,
+        popEnterTransition = PushPopEnter,
+        popExitTransition = PushPopExit,
     ) { backStackEntry ->
         val planKey: String = backStackEntry.arguments
             ?.getString(PaymentRoutes.SUCCESS_ARG_PLAN_KEY)
