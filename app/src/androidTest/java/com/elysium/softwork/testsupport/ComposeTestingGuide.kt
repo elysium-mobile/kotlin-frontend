@@ -19,41 +19,51 @@ package com.elysium.softwork.testsupport
  *
  * ## Boilerplate
  *
- * Every Compose UI test method follows the same template, built around the v2
- * [androidx.compose.ui.test.v2.runComposeUiTest] builder. Both the legacy
- * `createComposeRule()` JUnit4 rule and the first-generation `runComposeUiTest`
- * builder have been deprecated; the v2 builder replaces them with a method-scoped
- * `ComposeUiTest` receiver whose API surface (`setContent`, `onNodeWithText`,
- * `waitForIdle`, `runOnUiThread`, `mainClock`, …) is identical, but its dispatcher
- * aligns with standard coroutine behavior by queuing tasks instead of executing
- * them eagerly. Pair every state mutation with the implicit synchronization the
- * matchers provide, or call `waitForIdle()` explicitly when asserting in between.
+ * Every Compose UI test class follows the same template, built around the JUnit4
+ * v2 [androidx.compose.ui.test.junit4.v2.createComposeRule] entry point. The v2
+ * namespace is the supported helper because:
+ *  - The legacy `androidx.compose.ui.test.junit4.createComposeRule` is deprecated.
+ *  - The top-level `androidx.compose.ui.test.runComposeUiTest` builder is also
+ *    deprecated in favor of `androidx.compose.ui.test.v2.runComposeUiTest`, which
+ *    requires reworking every test body into a method-scoped suspending block.
+ *  - The v2 JUnit4 rule keeps the class-scoped `@get:Rule` ergonomics every test in
+ *    this codebase already uses, while routing through the same v2 internals as
+ *    the v2 builder. No body changes required when migrating.
+ *
+ * Runtime coupling: the v2 path delegates into `kotlinx.coroutines.test.runTest`,
+ * which calls `BuildersKt.runBlockingK$default(...)` — a method only present in
+ * `kotlinx-coroutines-core` ≥ 1.10. The module's `kotlinx-coroutines-android`
+ * dependency is therefore pinned at the same version as `kotlinx-coroutines-test`
+ * so the APK ships the matching runtime symbol. Without the pin, transitive
+ * resolution can leave the APK with an older `kotlinx-coroutines-core`, which
+ * surfaces on-device as a `NoSuchMethodError` the first time a Compose test runs.
  *
  * ```
  * class MyScreenTest {
- *     @Test fun primary_action_emits_click() = runComposeUiTest {
+ *     @get:Rule val composeRule = createComposeRule()
+ *
+ *     @Test fun primary_action_emits_click() {
  *         var clicked = false
- *         setContent {
+ *         composeRule.setContent {
  *             SoftWorkTheme {
  *                 SoftWorkButton(text = "Pay", onClick = { clicked = true })
  *             }
  *         }
- *         onNodeWithText("Pay").performClick()
+ *         composeRule.onNodeWithText("Pay").performClick()
  *         assertTrue(clicked)
  *     }
  * }
  * ```
  *
  * Notes:
- *  - The builder provisions an empty host Activity. When a screen requires
- *    Activity-level APIs (`onBackPressed`, IME insets that depend on the window), use
- *    `runAndroidComposeUiTest<ComponentActivity> { ... }` instead.
+ *  - `createComposeRule()` provisions an empty host Activity. Use
+ *    `createAndroidComposeRule<ComponentActivity>()` (also under the v2 namespace)
+ *    when a screen requires Activity-level APIs (`onBackPressed`, IME insets that
+ *    depend on the window).
  *  - Always wrap the content under `SoftWorkTheme` so the assertions exercise the same
  *    palette and typography the production app renders.
- *  - Localized strings are looked up through the host Activity's `getString(R.string.x)`
- *    to keep assertions independent of the test locale. Inside the builder, the
- *    Activity is reachable via the implicit `activity` property on the
- *    `AndroidComposeUiTest` flavour.
+ *  - Localized strings are looked up through `composeRule.activity.getString(R.string.x)`
+ *    to keep assertions independent of the test locale.
  *
  * ## Querying the semantics tree
  *

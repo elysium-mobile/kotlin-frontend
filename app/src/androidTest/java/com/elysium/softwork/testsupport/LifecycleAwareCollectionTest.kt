@@ -3,14 +3,14 @@ package com.elysium.softwork.testsupport
 import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.testing.TestLifecycleOwner
 import kotlinx.coroutines.flow.MutableStateFlow
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -31,23 +31,28 @@ import org.junit.Test
  * test ignores the host Activity's real lifecycle — the host stays at RESUMED for the
  * full duration, only the lifecycle owner visible to the composable changes state.
  *
- * The test uses the v2 [runComposeUiTest] builder rather than the now-deprecated
- * `createComposeRule()` JUnit4 rule or the original `runComposeUiTest`. The v2 block
- * exposes a `ComposeUiTest` receiver whose surface (`setContent`, `onNodeWithText`,
- * `waitForIdle`, `runOnUiThread`) is identical to the legacy API, but it aligns with
- * standard coroutine behavior by queuing dispatched tasks instead of executing them
- * eagerly. Every state mutation in this test is therefore paired with an explicit
- * `waitForIdle()` call so the recomposition catches up before the assertion runs.
+ * The class uses the JUnit4 v2 [createComposeRule] entry point
+ * (`androidx.compose.ui.test.junit4.v2.createComposeRule`). The v2 namespace keeps
+ * the class-scoped `@get:Rule` ergonomics that the original JUnit4 rule provided,
+ * while routing through the same v2 internals as the `runComposeUiTest { ... }`
+ * builder. This is the supported entry point because the legacy
+ * `androidx.compose.ui.test.junit4.createComposeRule` is deprecated, and the
+ * top-level `runComposeUiTest { ... }` builder is also deprecated in favor of the
+ * v2 namespace. Module-level dependency pinning of `kotlinx-coroutines-android`
+ * keeps the runtime classpath aligned with the version `kotlinx-coroutines-test`
+ * was compiled against, so the v2 path resolves cleanly on-device.
  */
-@OptIn(ExperimentalTestApi::class)
 class LifecycleAwareCollectionTest {
 
+    @get:Rule
+    val composeRule = createComposeRule()
+
     @Test
-    fun collector_freezes_when_owner_drops_below_started() = runComposeUiTest {
+    fun collector_freezes_when_owner_drops_below_started() {
         val source = MutableStateFlow(0)
         val owner = TestLifecycleOwner(initialState = Lifecycle.State.STARTED)
 
-        setContent {
+        composeRule.setContent {
             CompositionLocalProvider(LocalLifecycleOwner provides owner) {
                 val current: Int by source.collectAsStateWithLifecycle()
                 Text(text = "tick=$current")
@@ -55,28 +60,28 @@ class LifecycleAwareCollectionTest {
         }
 
         // STARTED → composition observes the initial value.
-        onNodeWithText("tick=0").assertExists()
+        composeRule.onNodeWithText("tick=0").assertExists()
 
         // STARTED → composition observes a fresh emission.
         source.value = 1
-        waitForIdle()
-        onNodeWithText("tick=1").assertExists()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("tick=1").assertExists()
 
         // Drop the owner below STARTED. Subsequent emissions must NOT reach the composition.
-        runOnUiThread { owner.currentState = Lifecycle.State.CREATED }
-        waitForIdle()
+        composeRule.runOnUiThread { owner.currentState = Lifecycle.State.CREATED }
+        composeRule.waitForIdle()
 
         source.value = 2
         source.value = 3
-        waitForIdle()
+        composeRule.waitForIdle()
 
         // The composition is still showing the value captured at the boundary.
-        onNodeWithText("tick=1").assertExists()
+        composeRule.onNodeWithText("tick=1").assertExists()
 
         // Returning to STARTED resumes the collector; the latest emission propagates.
-        runOnUiThread { owner.currentState = Lifecycle.State.STARTED }
-        waitForIdle()
+        composeRule.runOnUiThread { owner.currentState = Lifecycle.State.STARTED }
+        composeRule.waitForIdle()
 
-        onNodeWithText("tick=3").assertExists()
+        composeRule.onNodeWithText("tick=3").assertExists()
     }
 }

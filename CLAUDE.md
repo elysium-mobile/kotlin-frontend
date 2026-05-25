@@ -233,6 +233,88 @@ those approaches are obsolete and incompatible with App Bundles + per-app langua
 
 ---
 
+## Testing Architecture
+
+The test suite is split structurally across two source sets matching the JVM vs. device
+execution boundary. **No file crosses the boundary** — test rules, fakes, and helpers
+that touch coroutines or stores live under `src/test/`; anything that constructs a
+Compose semantics tree lives under `src/androidTest/`. Production source is exclusively
+under `src/main/` and never imports any test type.
+
+### Dependencies
+
+Added to `gradle/libs.versions.toml` and `app/build.gradle.kts`:
+
+| Artifact | Configuration | Purpose |
+|---|---|---|
+| `kotlinx-coroutines-test` | `testImplementation`, `androidTestImplementation` | `runTest`, `TestDispatcher`, `StandardTestDispatcher`, virtual-time helpers. |
+| `kotlinx-coroutines-android` | `implementation` (main) | **Pinned at the same version as `kotlinx-coroutines-test`** so the runtime ABI on the device matches what the test machinery was compiled against. Without this pin, `BuildersKt.runBlockingK$default(...)` is absent at runtime and Compose UI tests crash with `NoSuchMethodError`. |
+| `androidx.lifecycle:lifecycle-runtime-testing` | `androidTestImplementation` | `TestLifecycleOwner` for the lifecycle-aware collection proof. |
+
+### `src/test/java/` — JVM unit tests
+
+| Path | Role |
+|---|---|
+| `testsupport/MainDispatcherRule.kt` | JUnit4 `TestRule` swapping `Dispatchers.Main` with a `TestDispatcher`. Default is `UnconfinedTestDispatcher` (eager dispatch — `StateFlow.value` reads immediately after a `submit*` call see the post-launch snapshot). Pass `StandardTestDispatcher()` when a test must observe transient states (e.g. `Loading` between `Idle` and `Success`). |
+| `testsupport/FakeAuthStore.kt` | In-memory `AuthStore` double. Programmable `nextLoginResult` / `nextRegisterResult`, invocation counters, captured-argument tuples (`lastLoginArgs`, `lastRegisterArgs`, …). |
+| `testsupport/FakeMembershipStore.kt` | In-memory `MembershipStore` double backed by `MutableStateFlow`s. Public `seedMembership(active, planKey)` and `seedPaymentMethods(...)` mutators bypass the public path for pre-state tests. |
+| `testsupport/FakeFeedbackStore.kt` | In-memory `FeedbackStore` double. `send(...)` appends the user message synchronously, suspends `delay(mockReplyDelayMillis)` on virtual time, then appends a programmable AI reply. |
+| `testsupport/FakePostStore.kt` | In-memory `PostStore` double with a `MutableStateFlow` backing `observe()` and an `emit(list)` test-only mutator. Records `refresh` / `publish` invocations. |
+| `testsupport/FakeNotificationStore.kt` | In-memory `NotificationStore` double exposing the feed through a `MutableStateFlow` with a test-only `emit(...)` helper. |
+| `iam/application/AuthValidationTest.kt` | Pure JVM coverage of `AuthValidation` — email regex, corporate-domain classification across every entry in `Domains.PERSONAL`, password length boundary, confirmation match, username trim. |
+| `iam/application/viewmodel/AuthViewModelTest.kt` | Form-state mutators, `submitLogin` no-op for blank input, `Idle → Success / Error` transitions, trimmed-field forwarding, `consumeState` reset. |
+| `payment/membership/application/viewmodel/MembershipViewModelTest.kt` | `CardFormState` input filtering and `isValid` boundaries, `PaymentState` state-machine (`Idle → Processing → Succeeded`) with `StandardTestDispatcher`, re-entrancy guard, activation/cancellation forwarding. |
+| `feedback/application/viewmodel/AiChatViewModelTest.kt` | Drives the chat flow against virtual time: instant user-message append, `isSending = true` mid-round-trip, AI reply append, `isSending = false` in `finally`. Covers blank-input rejection and the re-entrancy guard. |
+| `worker/forum/application/viewmodel/ForumViewModelTest.kt` | Launches a `backgroundScope.launch { vm.posts.collect {} }` to satisfy `stateIn(WhileSubscribed)`; verifies init-time refresh, category filter, null-category reset, stable item identity across emissions. |
+| `notifications/application/viewmodel/NotificationsViewModelTest.kt` | Asserts init-time collector lands the first snapshot, subsequent emissions update the flow, list items keep stable identity (`assertSame`), `NotificationType` discriminators survive the round trip. |
+
+### `src/androidTest/java/` — instrumentation tests
+
+The supported entry point is **`androidx.compose.ui.test.junit4.v2.createComposeRule`** —
+the JUnit4 v2 rule. The legacy `androidx.compose.ui.test.junit4.createComposeRule` is
+deprecated, and the top-level `androidx.compose.ui.test.runComposeUiTest` builder is also
+deprecated in favour of `androidx.compose.ui.test.v2.runComposeUiTest`. The v2 JUnit4
+rule keeps the class-scoped `composeRule` property the project uses everywhere while
+routing through the same v2 internals as the builder — no test-body migration required.
+
+| Path | Role |
+|---|---|
+| `testsupport/ComposeTestingGuide.kt` | Standalone reference (no `@Test` methods) documenting the v2 JUnit4 rule template, semantics-tree query order (`onNodeWithText` → `onNodeWithContentDescription` → `onNodeWithTag`), the per-test 500 ms budget, and the runtime-coupling note on the `kotlinx-coroutines-android` pin. |
+| `testsupport/LifecycleAwareCollectionTest.kt` | Drives a `TestLifecycleOwner` across `STARTED ↔ CREATED` to prove `collectAsStateWithLifecycle()` pauses collection (and therefore CPU) on backgrounding. |
+| `shared/presentation/components/SoftWorkButtonTest.kt` | Label rendering, click action exposure, enabled/disabled gating, HR variant smoke. |
+| `shared/presentation/components/SoftWorkTextFieldTest.kt` | Placeholder rendering, hoisted `onValueChange` emission via `performTextInput`, full clearance via `performTextClearance`. |
+| `shared/presentation/components/SoftWorkCardTest.kt` | Slot content surfaces in the semantics tree; nested layouts propagate intact. |
+| `shared/presentation/components/InitialsAvatarTest.kt` | Initials derivation: two-word names, single-word names, lowercase input uppercased, multi-whitespace collapse. |
+
+### Conventions
+
+- **Direct constructor injection of fakes** — `AuthViewModel(FakeAuthStore())`. The
+  production `Factory` companions are intentionally bypassed because their only role is
+  to pull dependencies out of `SoftWorkApplication.serviceLocator`. That glue belongs to
+  instrumentation, not host-machine unit tests.
+- **`runTest(mainDispatcherRule.testDispatcher) { ... }`** — pass the rule's dispatcher
+  into `runTest` so both the rule's `Dispatchers.Main` swap and the test body share the
+  same virtual-time scheduler.
+- **`backgroundScope` for hot subscriptions** — when a `stateIn(WhileSubscribed)` flow is
+  under test, subscribe via `backgroundScope.launch { vm.x.collect {} }`. `backgroundScope`
+  cancels automatically when the test returns, so no coroutine job leaks.
+- **Lifecycle-safe collection contract** — every screen-level flow consumer uses
+  `collectAsStateWithLifecycle()`; the `LifecycleAwareCollectionTest` is the canonical
+  proof that the contract holds. Adding a new consumer that uses `collectAsState()` is a
+  regression and must be caught in review.
+- **Stable identity on lists** — every `LazyColumn`/`LazyRow` declares
+  `key = { item.id }`. Tests assert that re-emissions of unchanged entries keep their
+  reference (`assertSame`) so the diffing layer short-circuits.
+
+### How to run
+
+```bash
+./gradlew test                  # JVM unit tests, no device required (~seconds)
+./gradlew connectedAndroidTest  # Instrumentation tests (requires device or emulator)
+```
+
+---
+
 ## Current Progress
 
 ### ✅ Phase 1 — Scaffolding & Design System (complete)

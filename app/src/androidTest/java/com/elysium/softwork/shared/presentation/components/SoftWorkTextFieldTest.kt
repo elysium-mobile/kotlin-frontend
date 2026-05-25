@@ -1,19 +1,19 @@
 package com.elysium.softwork.shared.presentation.components
 
-import android.annotation.SuppressLint
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
-import androidx.compose.ui.test.v2.runComposeUiTest
 import com.elysium.softwork.shared.presentation.theme.SoftWorkTheme
 import org.junit.Assert.assertEquals
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -26,15 +26,25 @@ import org.junit.Test
  *    parent state holder owns the truth.
  *  - Clearing the field empties the hoisted value back to an empty string.
  *
- * Each test creates a scoped `runComposeUiTest` block (v2) and renders the field
- * under [SoftWorkTheme] so the color and border treatments match production.
+ * The class uses the JUnit4 v2 [createComposeRule] entry point
+ * (`androidx.compose.ui.test.junit4.v2.createComposeRule`). The v2 namespace keeps
+ * the class-scoped `@get:Rule` ergonomics that the original JUnit4 rule provided,
+ * while routing through the same v2 internals as the `runComposeUiTest { ... }`
+ * builder. This is the supported entry point because the legacy
+ * `androidx.compose.ui.test.junit4.createComposeRule` is deprecated, and the
+ * top-level `runComposeUiTest { ... }` builder is also deprecated in favor of the
+ * v2 namespace. Module-level dependency pinning of `kotlinx-coroutines-android`
+ * keeps the runtime classpath aligned with the version `kotlinx-coroutines-test`
+ * was compiled against, so the v2 path resolves cleanly on-device.
  */
-@OptIn(ExperimentalTestApi::class)
 class SoftWorkTextFieldTest {
 
+    @get:Rule
+    val composeRule = createComposeRule()
+
     @Test
-    fun rendersPlaceholderBeforeInput() = runComposeUiTest {
-        setContent {
+    fun rendersPlaceholderBeforeInput() {
+        composeRule.setContent {
             SoftWorkTheme {
                 SoftWorkTextField(
                     value = "",
@@ -44,15 +54,14 @@ class SoftWorkTextFieldTest {
             }
         }
 
-        onNodeWithText("Corporate email").assertIsDisplayed()
+        composeRule.onNodeWithText("Corporate email").assertIsDisplayed()
     }
 
-    @SuppressLint("UnrememberedMutableState")
     @Test
-    fun emitsValueChangeOnTextInput() = runComposeUiTest {
+    fun emitsValueChangeOnTextInput() {
         var captured = ""
-        setContent {
-            var hoisted by mutableStateOf("")
+        composeRule.setContent {
+            var hoisted by remember { mutableStateOf("") }
             SoftWorkTheme {
                 SoftWorkTextField(
                     value = hoisted,
@@ -65,20 +74,19 @@ class SoftWorkTextFieldTest {
             }
         }
 
-        onNode(hasSetTextAction()).performTextInput("4242")
+        composeRule.onNode(hasSetTextAction()).performTextInput("4242")
 
         // The semantics tree reflects the current hoisted value, and the callback
         // received the latest typed string.
-        onNode(hasSetTextAction()).assertTextEquals("4242")
+        composeRule.onNode(hasSetTextAction()).assertTextEquals("4242")
         assertEquals("4242", captured)
     }
 
-    @SuppressLint("UnrememberedMutableState")
     @Test
-    fun clearingEmptiesTheHoistedValue() = runComposeUiTest {
+    fun clearingEmptiesTheHoistedValue() {
         var captured = "starting"
-        setContent {
-            var hoisted by mutableStateOf("starting")
+        composeRule.setContent {
+            var hoisted by remember { mutableStateOf("starting") }
             SoftWorkTheme {
                 SoftWorkTextField(
                     value = hoisted,
@@ -90,7 +98,7 @@ class SoftWorkTextFieldTest {
             }
         }
 
-        onNode(hasSetTextAction()).performTextClearance()
+        composeRule.onNode(hasSetTextAction()).performTextClearance()
 
         assertEquals("", captured)
     }

@@ -1,16 +1,16 @@
 package com.elysium.softwork.shared.presentation.components
 
-import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.v2.runComposeUiTest
 import com.elysium.softwork.shared.presentation.theme.SoftWorkTheme
 import com.elysium.softwork.shared.utils.discriminators.ButtonVariant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -20,42 +20,46 @@ import org.junit.Test
  *  1. **Smoke test for the brand button** — every screen depends on it; regressions in
  *     the click action, label rendering, or disabled state would cascade.
  *  2. **Template for future component tests.** The class establishes the conventions
- *     other component tests should follow: the [runComposeUiTest] builder, content
- *     wrapped in `SoftWorkTheme`, text-driven semantics queries, no `Thread.sleep`.
+ *     other component tests should follow: a single class-scoped `composeRule`,
+ *     content wrapped in `SoftWorkTheme`, text-driven semantics queries, no
+ *     `Thread.sleep`.
  *  3. **Verification that the disabled state is honored** — `SoftWorkButton` paints a
  *     0.5 alpha and gates the `clickable` modifier on the `enabled` flag, so a test that
  *     taps a disabled button must observe zero callback invocations.
  *
- * The test runs as instrumentation because Compose UI tests require the real Android
- * Choreographer and Skia renderer. Each test method is a v2 [runComposeUiTest] block —
- * the modern replacement for the now-deprecated `createComposeRule()` JUnit4 rule and
- * the original `runComposeUiTest`. The v2 builder scopes the composition lifecycle to
- * the test method and aligns with standard coroutine behavior: dispatched tasks queue
- * rather than execute immediately, so any test that asserts after a state mutation
- * should rely on the implicit synchronization performed by `performClick` and the
- * matchers, or call `waitForIdle()` explicitly.
+ * The class uses the JUnit4 v2 [createComposeRule] entry point
+ * (`androidx.compose.ui.test.junit4.v2.createComposeRule`). The v2 namespace keeps
+ * the class-scoped `@get:Rule` ergonomics that the original JUnit4 rule provided,
+ * while routing through the same v2 internals as the `runComposeUiTest { ... }`
+ * builder. This is the supported entry point because the legacy
+ * `androidx.compose.ui.test.junit4.createComposeRule` is deprecated, and the
+ * top-level `runComposeUiTest { ... }` builder is also deprecated in favor of the
+ * v2 namespace. Module-level dependency pinning of `kotlinx-coroutines-android`
+ * keeps the runtime classpath aligned with the version `kotlinx-coroutines-test`
+ * was compiled against, so the v2 path resolves cleanly on-device.
  */
-@OptIn(ExperimentalTestApi::class)
 class SoftWorkButtonTest {
 
+    @get:Rule
+    val composeRule = createComposeRule()
 
     @Test
-    fun rendersLabelAndExposesClickAction() = runComposeUiTest {
-        setContent {
+    fun rendersLabelAndExposesClickAction() {
+        composeRule.setContent {
             SoftWorkTheme {
                 SoftWorkButton(text = "Pay membership", onClick = {})
             }
         }
 
-        onNodeWithText("Pay membership")
+        composeRule.onNodeWithText("Pay membership")
             .assertIsDisplayed()
             .assertHasClickAction()
     }
 
     @Test
-    fun invokesCallbackOnTapWhenEnabled() = runComposeUiTest {
+    fun invokesCallbackOnTapWhenEnabled() {
         var clicks = 0
-        setContent {
+        composeRule.setContent {
             SoftWorkTheme {
                 SoftWorkButton(
                     text = "Add card",
@@ -64,16 +68,16 @@ class SoftWorkButtonTest {
             }
         }
 
-        onNodeWithText("Add card").performClick()
-        onNodeWithText("Add card").performClick()
+        composeRule.onNodeWithText("Add card").performClick()
+        composeRule.onNodeWithText("Add card").performClick()
 
         assertEquals(2, clicks)
     }
 
     @Test
-    fun swallowsTapsWhenDisabled() = runComposeUiTest {
+    fun swallowsTapsWhenDisabled() {
         var clicked = false
-        setContent {
+        composeRule.setContent {
             SoftWorkTheme {
                 SoftWorkButton(
                     text = "Add card",
@@ -83,17 +87,15 @@ class SoftWorkButtonTest {
             }
         }
 
-        onNodeWithText("Add card").performClick()
+        composeRule.onNodeWithText("Add card").performClick()
 
         assertFalse(clicked)
     }
 
     @Test
-    fun rendersUnderTheHRVariantWithoutCrashing() = runComposeUiTest {
-        // The HR variant uses a solid PrimaryNavy fill instead of the EMPLOYEE gradient.
-        // The test only smokes the rendering path — visual diffing is out of scope here.
+    fun rendersUnderTheHRVariantWithoutCrashing() {
         var rendered = false
-        setContent {
+        composeRule.setContent {
             SoftWorkTheme {
                 SoftWorkButton(
                     text = "Acknowledge",
@@ -104,7 +106,7 @@ class SoftWorkButtonTest {
             rendered = true
         }
 
-        onNodeWithText("Acknowledge").assertIsDisplayed()
+        composeRule.onNodeWithText("Acknowledge").assertIsDisplayed()
         assertTrue(rendered)
     }
 }

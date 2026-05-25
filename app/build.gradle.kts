@@ -103,6 +103,11 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    // Pinned explicitly so the runtime version on-device matches what
+    // `kotlinx-coroutines-test` was compiled against. Without this pin, transitive
+    // resolution can leave the APK with an older `kotlinx-coroutines-core` that
+    // lacks `runBlockingK$default`, which the Compose UI test machinery requires.
+    implementation(libs.kotlinx.coroutines.android)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(platform(libs.androidx.compose.bom))
