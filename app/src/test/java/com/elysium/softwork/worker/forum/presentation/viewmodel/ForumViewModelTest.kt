@@ -1,8 +1,10 @@
-package com.elysium.softwork.worker.forum.application.viewmodel
+package com.elysium.softwork.worker.forum.presentation.viewmodel
 
 import com.elysium.softwork.shared.utils.values.ForumCategory
 import com.elysium.softwork.testsupport.FakePostStore
 import com.elysium.softwork.testsupport.MainDispatcherRule
+import com.elysium.softwork.worker.forum.application.usecase.ObservePostsUseCase
+import com.elysium.softwork.worker.forum.application.usecase.RefreshPostsUseCase
 import com.elysium.softwork.worker.forum.domain.model.Post
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -42,6 +44,15 @@ class ForumViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule(UnconfinedTestDispatcher())
 
+    /**
+     * Builds the ViewModel with the real application-layer use cases wrapping the fake
+     * store, mirroring the production factory wiring without touching the locator.
+     */
+    private fun newViewModel(store: FakePostStore): ForumViewModel = ForumViewModel(
+        observePosts = ObservePostsUseCase(store),
+        refreshPosts = RefreshPostsUseCase(store),
+    )
+
     private fun samplePosts(): List<Post> = listOf(
         Post(
             id = "p-1",
@@ -72,7 +83,7 @@ class ForumViewModelTest {
     @Test
     fun `init triggers a single refresh on the store`() = runTest(mainDispatcherRule.testDispatcher) {
         val store = FakePostStore()
-        ForumViewModel(store)
+        newViewModel(store)
         advanceUntilIdle()
 
         assertEquals(1, store.refreshInvocations)
@@ -82,7 +93,7 @@ class ForumViewModelTest {
     fun `posts emits the store snapshot when subscribed`() =
         runTest(mainDispatcherRule.testDispatcher) {
             val store = FakePostStore()
-            val vm = ForumViewModel(store)
+            val vm = newViewModel(store)
             backgroundScope.launch { vm.posts.collect {} }
 
             store.emit(samplePosts())
@@ -96,7 +107,7 @@ class ForumViewModelTest {
     fun `selectCategory filters the feed by the wire key`() =
         runTest(mainDispatcherRule.testDispatcher) {
             val store = FakePostStore(initialPosts = samplePosts())
-            val vm = ForumViewModel(store)
+            val vm = newViewModel(store)
             backgroundScope.launch { vm.posts.collect {} }
             advanceUntilIdle()
 
@@ -113,7 +124,7 @@ class ForumViewModelTest {
     fun `selectCategory null re-exposes the full feed`() =
         runTest(mainDispatcherRule.testDispatcher) {
             val store = FakePostStore(initialPosts = samplePosts())
-            val vm = ForumViewModel(store)
+            val vm = newViewModel(store)
             backgroundScope.launch { vm.posts.collect {} }
 
             vm.selectCategory(ForumCategory.EVENTS)
@@ -129,7 +140,7 @@ class ForumViewModelTest {
     fun `refresh forwards to the store on demand`() =
         runTest(mainDispatcherRule.testDispatcher) {
             val store = FakePostStore()
-            val vm = ForumViewModel(store)
+            val vm = newViewModel(store)
             advanceUntilIdle()
             // init has already called refresh once.
             assertEquals(1, store.refreshInvocations)
@@ -144,7 +155,7 @@ class ForumViewModelTest {
     fun `posts preserves stable item identity across emissions`() =
         runTest(mainDispatcherRule.testDispatcher) {
             val store = FakePostStore()
-            val vm = ForumViewModel(store)
+            val vm = newViewModel(store)
             backgroundScope.launch { vm.posts.collect {} }
 
             val first = Post(id = "p-1", title = "First", category = ForumCategory.SUGGESTIONS.key)

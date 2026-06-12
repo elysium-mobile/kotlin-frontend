@@ -1,6 +1,9 @@
-package com.elysium.softwork.iam.application.viewmodel
+package com.elysium.softwork.iam.presentation.viewmodel
 
 import com.elysium.softwork.iam.application.AuthState
+import com.elysium.softwork.iam.application.usecase.LoginUseCase
+import com.elysium.softwork.iam.application.usecase.RegisterUseCase
+import com.elysium.softwork.iam.application.usecase.RegisterWithGoogleUseCase
 import com.elysium.softwork.iam.domain.model.User
 import com.elysium.softwork.testsupport.FakeAuthStore
 import com.elysium.softwork.testsupport.MainDispatcherRule
@@ -40,8 +43,17 @@ class AuthViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
+    /**
+     * Builds the ViewModel with the real application-layer use cases wrapping the fake
+     * store. The use cases are stateless pass-through (plus input trimming), so the
+     * fake remains the single observation point for forwarded arguments.
+     */
     private fun newViewModel(store: FakeAuthStore = FakeAuthStore()): AuthViewModel =
-        AuthViewModel(store)
+        AuthViewModel(
+            loginUseCase = LoginUseCase(store),
+            registerUseCase = RegisterUseCase(store),
+            registerWithGoogleUseCase = RegisterWithGoogleUseCase(store),
+        )
 
     // region Form state
     @Test
@@ -218,7 +230,7 @@ class AuthViewModelTest {
     }
     // endregion
 
-    // region Re-entrancy + consumeState
+    // region Re-entrance + consumeState
     @Test
     fun `consumeState resets the request stream from Error back to Idle`() = runTest {
         val store = FakeAuthStore(nextLoginResult = Result.failure(IllegalStateException("fail")))

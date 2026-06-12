@@ -1,5 +1,12 @@
-package com.elysium.softwork.payment.membership.application.viewmodel
+package com.elysium.softwork.payment.membership.presentation.viewmodel
 
+import com.elysium.softwork.payment.membership.application.usecase.ActivateMembershipUseCase
+import com.elysium.softwork.payment.membership.application.usecase.AddPaymentMethodUseCase
+import com.elysium.softwork.payment.membership.application.usecase.CancelSubscriptionUseCase
+import com.elysium.softwork.payment.membership.application.usecase.GetMembershipPlansUseCase
+import com.elysium.softwork.payment.membership.application.usecase.ObserveCurrentPlanUseCase
+import com.elysium.softwork.payment.membership.application.usecase.ObservePaymentMethodsUseCase
+import com.elysium.softwork.payment.membership.application.usecase.PayMembershipUseCase
 import com.elysium.softwork.testsupport.FakeMembershipStore
 import com.elysium.softwork.testsupport.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -36,8 +43,21 @@ class MembershipViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule(StandardTestDispatcher())
 
+    /**
+     * Builds the ViewModel with the real application-layer use cases wrapping the fake
+     * store. Card assembly (brand detection, last-4) and the mocked payment delay now
+     * live inside the use cases, so wiring them keeps the original assertions valid.
+     */
     private fun newViewModel(store: FakeMembershipStore = FakeMembershipStore()): MembershipViewModel =
-        MembershipViewModel(store)
+        MembershipViewModel(
+            getPlans = GetMembershipPlansUseCase(store),
+            observePaymentMethods = ObservePaymentMethodsUseCase(store),
+            observeCurrentPlan = ObserveCurrentPlanUseCase(store),
+            addPaymentMethod = AddPaymentMethodUseCase(store),
+            payMembership = PayMembershipUseCase(),
+            activateMembership = ActivateMembershipUseCase(store),
+            cancelSubscription = CancelSubscriptionUseCase(store),
+        )
 
     // region Card form buffer
     @Test

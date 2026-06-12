@@ -1,5 +1,6 @@
-package com.elysium.softwork.notifications.application.viewmodel
+package com.elysium.softwork.notifications.presentation.viewmodel
 
+import com.elysium.softwork.notifications.application.usecase.GetNotificationsUseCase
 import com.elysium.softwork.notifications.domain.model.Notification
 import com.elysium.softwork.shared.utils.values.NotificationType
 import com.elysium.softwork.testsupport.FakeNotificationStore
@@ -35,6 +36,13 @@ class NotificationsViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule(UnconfinedTestDispatcher())
 
+    /**
+     * Builds the ViewModel with the real application-layer use case wrapping the fake
+     * store, mirroring the production factory wiring without touching the locator.
+     */
+    private fun newViewModel(store: FakeNotificationStore): NotificationsViewModel =
+        NotificationsViewModel(getNotifications = GetNotificationsUseCase(store))
+
     private fun sampleFeed(): List<Notification> = listOf(
         Notification(
             id = "n-1",
@@ -59,7 +67,7 @@ class NotificationsViewModelTest {
     @Test
     fun `init exposes the first store snapshot`() = runTest(mainDispatcherRule.testDispatcher) {
         val store = FakeNotificationStore(initial = sampleFeed())
-        val vm = NotificationsViewModel(store)
+        val vm = newViewModel(store)
         advanceUntilIdle()
 
         assertEquals(3, vm.notifications.value.size)
@@ -71,7 +79,7 @@ class NotificationsViewModelTest {
     fun `subsequent store emissions update notifications`() =
         runTest(mainDispatcherRule.testDispatcher) {
             val store = FakeNotificationStore()
-            val vm = NotificationsViewModel(store)
+            val vm = newViewModel(store)
             advanceUntilIdle()
             assertEquals(emptyList<Any>(), vm.notifications.value)
 
@@ -91,7 +99,7 @@ class NotificationsViewModelTest {
                 description = "Hello",
             )
             val store = FakeNotificationStore(initial = listOf(initial))
-            val vm = NotificationsViewModel(store)
+            val vm = newViewModel(store)
             advanceUntilIdle()
 
             val firstSnapshot = vm.notifications.value
@@ -116,7 +124,7 @@ class NotificationsViewModelTest {
     fun `type discriminator survives the round trip`() =
         runTest(mainDispatcherRule.testDispatcher) {
             val store = FakeNotificationStore(initial = sampleFeed())
-            val vm = NotificationsViewModel(store)
+            val vm = newViewModel(store)
             advanceUntilIdle()
 
             val typesByOrder = vm.notifications.value.map { it.type }

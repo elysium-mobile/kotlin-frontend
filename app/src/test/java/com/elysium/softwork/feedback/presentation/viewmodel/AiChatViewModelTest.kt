@@ -1,5 +1,7 @@
-package com.elysium.softwork.feedback.application.viewmodel
+package com.elysium.softwork.feedback.presentation.viewmodel
 
+import com.elysium.softwork.feedback.application.usecase.ObserveConversationUseCase
+import com.elysium.softwork.feedback.application.usecase.SendChatMessageUseCase
 import com.elysium.softwork.testsupport.FakeFeedbackStore
 import com.elysium.softwork.testsupport.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -44,8 +46,16 @@ class AiChatViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule(StandardTestDispatcher())
 
+    /**
+     * Builds the ViewModel with the real application-layer use cases wrapping the fake
+     * store, so the virtual-time suspension inside the fake's `send` still drives the
+     * `isSending` window exactly as production wiring would.
+     */
     private fun newViewModel(store: FakeFeedbackStore = FakeFeedbackStore()): AiChatViewModel =
-        AiChatViewModel(store)
+        AiChatViewModel(
+            observeConversation = ObserveConversationUseCase(store),
+            sendChatMessage = SendChatMessageUseCase(store),
+        )
 
     @Test
     fun `initial state exposes an empty conversation and is not sending`() {
