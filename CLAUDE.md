@@ -58,11 +58,40 @@ On Windows (PowerShell): swap `./gradlew` for `.\gradlew.bat`.
 
 ```
 <context>/
-├── domain/         # Models, interfaces, business rules. No Android imports.
-├── data/store/     # FooStore implementations (Retrofit + Room)
-├── application/    # Use cases / orchestration (kept thin)
-└── presentation/   # Composables, ViewModels, navigation
+├── domain/                  # Pure entities + contracts. No framework imports, no annotations.
+├── data/store/              # FooStore implementations (Retrofit + Room)
+├── application/usecase/     # Use cases — the only home of business operations
+└── presentation/
+    ├── viewmodel/           # UI state holders. Delegate every operation to a use case.
+    ├── views/               # Composables
+    └── navigation/          # Route catalogs + NavGraphBuilder wiring
 ```
+
+**Layer rules (enforced in review):**
+- **Domain is 100% framework-agnostic.** No Gson/Room/Retrofit/Compose imports in
+  `domain/model/` — with one documented exception (see "Domain purity" below).
+- **ViewModels live in `presentation/viewmodel/`, never in `application/`.** They hold UI
+  state via read-only `StateFlow`s and delegate every business operation to a use case.
+- **`application/usecase/` houses the use cases** — small, stateless classes with an
+  `operator fun invoke(...)` that wrap exactly one business operation (input
+  normalization, entity assembly, dispatch to a Store). Factories on the ViewModel
+  companions assemble them from the `ServiceLocator` stores.
+
+### Domain purity
+
+Domain entities carry **zero serializer annotations**. Property names match the backend
+wire keys exactly, so Gson resolves fields by reflection without `@SerializedName`. If a
+wire contract ever diverges from the entity's property names, introduce a DTO under
+`data/network/dto/` and map it into the domain entity — never re-annotate the domain.
+
+Two consequences to keep in mind:
+- **R8/minify**: reflection-based Gson requires keep rules for the model packages if
+  `isMinifyEnabled` is ever turned on (it is currently `false`). Add
+  `-keep class com.elysium.softwork.**.domain.model.** { *; }` before enabling shrinking.
+- **`Post` is the one documented exception**: it keeps Room's `@Entity`/`@PrimaryKey`
+  because it doubles as the offline-first cache row. Splitting it would force a mapper
+  on every feed emission — doubled allocations on the hot scroll path of the lowest-end
+  target devices. No other domain entity may carry Room annotations.
 
 ### Store Pattern
 
@@ -83,22 +112,22 @@ class PostStoreImpl(
 ) : PostStore { /* ... */ }
 ```
 
-### Bean / Pragmatic Shortcut (Phase 2 onwards)
+### Bean / Pragmatic Shortcut
 
-The IAM context introduced a deliberate shortcut: **a single Kotlin `data class` annotated
-with `@SerializedName` flows through the Retrofit WebService for both request bodies and
-response payloads** — no DTOs, no assemblers, no mappers. Different endpoints fill different
-subsets of the model (login fills `email`/`password`, the response fills `id`/`token`/…), so
-all fields are nullable. Trade-off accepted: simpler code, faster iteration; cost: a single
-class describes multiple wire shapes.
+A deliberate shortcut shared by every context: **a single annotation-free Kotlin
+`data class` flows through the Retrofit WebService for both request bodies and response
+payloads** — no DTOs, no assemblers, no mappers. Gson matches fields by name via
+reflection, which is why domain property names mirror the wire keys 1:1. Different
+endpoints fill different subsets of the model (login fills `email`/`password`, the
+response fills `id`/`token`/…), so all fields are nullable.
 
 ```kotlin
-// iam/domain/model/User.kt
+// iam/domain/model/User.kt — no framework imports
 data class User(
-    @SerializedName("id") val id: String? = null,
-    @SerializedName("email") val email: String? = null,
-    @SerializedName("password") val password: String? = null,
-    @SerializedName("token") val token: String? = null,
+    val id: String? = null,
+    val email: String? = null,
+    val password: String? = null,
+    val token: String? = null,
     /* ... */
 )
 
@@ -108,17 +137,47 @@ interface AuthWebService {
 }
 ```
 
-Adopt this pattern in new contexts only when the data shape is genuinely simple and the
-team accepts the round-trip risk. Re-introduce DTOs the moment the wire contract diverges
-meaningfully from the domain model.
+Trade-off accepted: simpler code, faster iteration; cost: a single class describes
+multiple wire shapes, and renaming a property is a silent wire break (covered by review +
+the integration suite once the backend lands). Re-introduce DTOs under
+`data/network/dto/` the moment the wire contract diverges meaningfully from the domain
+model.
+
+### Use Case Pattern
+
+Every business operation is a dedicated class in `application/usecase/` with an
+`operator fun invoke(...)`. Use cases are stateless, hold a single Store (or
+`SharedPrefsManager`) reference, and own the rules that must not drift between callers —
+input trimming, entity assembly, identity blanking for anonymous content, mock delays.
+
+```kotlin
+// iam/application/usecase/LoginUseCase.kt
+class LoginUseCase(private val store: AuthStore) {
+    suspend operator fun invoke(email: String, password: String): Result<User> =
+        store.login(email.trim(), password)
+}
+
+// iam/presentation/viewmodel/AuthViewModel.kt — pure UI state holder
+class AuthViewModel(
+    private val loginUseCase: LoginUseCase,
+    /* ... */
+) : ViewModel() {
+    fun submitLogin() { /* gate, then */ runRequest { loginUseCase(email, password) } }
+}
+```
+
+ViewModel `Factory` companions assemble the use cases from `ServiceLocator` stores;
+unit tests assemble them from fakes — same wiring, no locator.
 
 ### Dependency Wiring (no Hilt)
 
 A manual [`ServiceLocator`](app/src/main/java/com/elysium/softwork/shared/core/ServiceLocator.kt)
 owned by `SoftWorkApplication` exposes process-wide singletons (SharedPreferences, Retrofit,
-each context's WebService, each context's Store). ViewModels receive their `Store` via a
-`ViewModelProvider.Factory` exposed on the ViewModel companion (see `AuthViewModel.Factory`).
-Composables resolve the ViewModel with `viewModel(factory = AuthViewModel.Factory)`.
+each context's WebService, each context's Store). ViewModels receive their **use cases**
+via a `ViewModelProvider.Factory` exposed on the ViewModel companion — the factory pulls
+the Store from the locator and wraps it in the context's use cases (see
+`AuthViewModel.Factory`). Composables resolve the ViewModel with
+`viewModel(factory = AuthViewModel.Factory)`. Stores never reach a ViewModel directly.
 
 ### Shared Utilities Layout (`shared/utils/`) and Route Catalogs
 
@@ -262,11 +321,11 @@ Added to `gradle/libs.versions.toml` and `app/build.gradle.kts`:
 | `testsupport/FakePostStore.kt` | In-memory `PostStore` double with a `MutableStateFlow` backing `observe()` and an `emit(list)` test-only mutator. Records `refresh` / `publish` invocations. |
 | `testsupport/FakeNotificationStore.kt` | In-memory `NotificationStore` double exposing the feed through a `MutableStateFlow` with a test-only `emit(...)` helper. |
 | `iam/application/AuthValidationTest.kt` | Pure JVM coverage of `AuthValidation` — email regex, corporate-domain classification across every entry in `Domains.PERSONAL`, password length boundary, confirmation match, username trim. |
-| `iam/application/viewmodel/AuthViewModelTest.kt` | Form-state mutators, `submitLogin` no-op for blank input, `Idle → Success / Error` transitions, trimmed-field forwarding, `consumeState` reset. |
-| `payment/membership/application/viewmodel/MembershipViewModelTest.kt` | `CardFormState` input filtering and `isValid` boundaries, `PaymentState` state-machine (`Idle → Processing → Succeeded`) with `StandardTestDispatcher`, re-entrancy guard, activation/cancellation forwarding. |
-| `feedback/application/viewmodel/AiChatViewModelTest.kt` | Drives the chat flow against virtual time: instant user-message append, `isSending = true` mid-round-trip, AI reply append, `isSending = false` in `finally`. Covers blank-input rejection and the re-entrancy guard. |
-| `worker/forum/application/viewmodel/ForumViewModelTest.kt` | Launches a `backgroundScope.launch { vm.posts.collect {} }` to satisfy `stateIn(WhileSubscribed)`; verifies init-time refresh, category filter, null-category reset, stable item identity across emissions. |
-| `notifications/application/viewmodel/NotificationsViewModelTest.kt` | Asserts init-time collector lands the first snapshot, subsequent emissions update the flow, list items keep stable identity (`assertSame`), `NotificationType` discriminators survive the round trip. |
+| `iam/presentation/viewmodel/AuthViewModelTest.kt` | Form-state mutators, `submitLogin` no-op for blank input, `Idle → Success / Error` transitions, trimmed-field forwarding (owned by the use cases), `consumeState` reset. |
+| `payment/membership/presentation/viewmodel/MembershipViewModelTest.kt` | `CardFormState` input filtering and `isValid` boundaries, `PaymentState` state-machine (`Idle → Processing → Succeeded`) with `StandardTestDispatcher`, re-entrancy guard, activation/cancellation forwarding. |
+| `feedback/presentation/viewmodel/AiChatViewModelTest.kt` | Drives the chat flow against virtual time: instant user-message append, `isSending = true` mid-round-trip, AI reply append, `isSending = false` in `finally`. Covers blank-input rejection and the re-entrancy guard. |
+| `worker/forum/presentation/viewmodel/ForumViewModelTest.kt` | Launches a `backgroundScope.launch { vm.posts.collect {} }` to satisfy `stateIn(WhileSubscribed)`; verifies init-time refresh, category filter, null-category reset, stable item identity across emissions. |
+| `notifications/presentation/viewmodel/NotificationsViewModelTest.kt` | Asserts init-time collector lands the first snapshot, subsequent emissions update the flow, list items keep stable identity (`assertSame`), `NotificationType` discriminators survive the round trip. |
 
 ### `src/androidTest/java/` — instrumentation tests
 
@@ -288,9 +347,12 @@ routing through the same v2 internals as the builder — no test-body migration 
 
 ### Conventions
 
-- **Direct constructor injection of fakes** — `AuthViewModel(FakeAuthStore())`. The
-  production `Factory` companions are intentionally bypassed because their only role is
-  to pull dependencies out of `SoftWorkApplication.serviceLocator`. That glue belongs to
+- **Real use cases over fake stores** — tests build the ViewModel with the production
+  use cases wrapping a fake store: `AuthViewModel(LoginUseCase(FakeAuthStore()), …)`.
+  The use cases are stateless pass-throughs (plus normalization rules), so the fake
+  remains the single observation point while the test still exercises the production
+  wiring. The `Factory` companions are intentionally bypassed because their only role is
+  to pull dependencies out of `SoftWorkApplication.serviceLocator` — that glue belongs to
   instrumentation, not host-machine unit tests.
 - **`runTest(mainDispatcherRule.testDispatcher) { ... }`** — pass the rule's dispatcher
   into `runTest` so both the rule's `Dispatchers.Main` swap and the test body share the

@@ -1,13 +1,12 @@
 package com.elysium.softwork.feedback.domain.model
 
-import com.google.gson.annotations.SerializedName
-
 /**
  * One entry in the AI chat conversation log.
  *
- * The same data class flows through any future Retrofit web service request/response and
- * into the in-memory conversation buffer exposed by the store. Every field carries a
- * non-null default so a partial server payload deserializes cleanly.
+ * Immutable domain entity, framework-agnostic by design: property names match the backend
+ * wire keys exactly so the data layer's JSON serializer resolves them by reflection
+ * without mapping annotations. Every field carries a non-null default so a partial
+ * payload constructs cleanly.
  *
  * @property id stable identifier — server-issued in production, locally generated via
  *   `UUID.randomUUID()` while the conversation is mocked.
@@ -19,8 +18,8 @@ import com.google.gson.annotations.SerializedName
  *   Used for stable ordering and (eventually) for the bubble timestamp display.
  */
 data class ChatMessage(
-    @SerializedName("id") val id: String = "",
-    @SerializedName("content") val content: String = "",
-    @SerializedName("isFromUser") val isFromUser: Boolean = false,
-    @SerializedName("timestamp") val timestamp: Long = 0L,
+    val id: String = "",
+    val content: String = "",
+    val isFromUser: Boolean = false,
+    val timestamp: Long = 0L,
 )

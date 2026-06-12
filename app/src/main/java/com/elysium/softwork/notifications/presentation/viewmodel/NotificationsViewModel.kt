@@ -1,11 +1,11 @@
-package com.elysium.softwork.notifications.application.viewmodel
+package com.elysium.softwork.notifications.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.elysium.softwork.SoftWorkApplication
-import com.elysium.softwork.notifications.data.store.NotificationStore
+import com.elysium.softwork.notifications.application.usecase.GetNotificationsUseCase
 import com.elysium.softwork.notifications.domain.model.Notification
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,27 +13,28 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Hosts the list of in-app notifications. Subscribes to [NotificationStore.getNotifications]
- * on construction and surfaces the latest snapshot through [notifications] for the Compose
- * layer to render.
+ * UI state holder for the notifications feed.
+ *
+ * Subscribes to [GetNotificationsUseCase] on construction and surfaces the latest
+ * snapshot through the read-only [notifications] stream for the Compose layer to render.
+ * No business logic lives here.
+ *
+ * @param getNotifications streams the worker's in-app notification feed.
  */
-class NotificationsViewModel(
-    private val notificationStore: NotificationStore,
-) : ViewModel() {
+class NotificationsViewModel(getNotifications: GetNotificationsUseCase) : ViewModel() {
 
     private val _notifications: MutableStateFlow<List<Notification>> = MutableStateFlow(emptyList())
     val notifications: StateFlow<List<Notification>> = _notifications.asStateFlow()
 
     init {
         viewModelScope.launch {
-            notificationStore.getNotifications().collect { list -> _notifications.value = list }
+            getNotifications().collect { list -> _notifications.value = list }
         }
     }
 
     companion object {
         /**
-         * Factory that pulls the [NotificationStore] from the [SoftWorkApplication] service
-         * locator.
+         * Factory that assembles the use case from the application service locator.
          *
          * Use it inside Composables:
          * ```
@@ -46,7 +47,9 @@ class NotificationsViewModel(
             override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
                 val application = extras[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]
                     as SoftWorkApplication
-                return NotificationsViewModel(application.serviceLocator.notificationStore) as T
+                return NotificationsViewModel(
+                    getNotifications = GetNotificationsUseCase(application.serviceLocator.notificationStore),
+                ) as T
             }
         }
     }

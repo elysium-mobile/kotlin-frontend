@@ -55,7 +55,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elysium.softwork.R
-import com.elysium.softwork.feedback.application.viewmodel.AiChatViewModel
+import com.elysium.softwork.feedback.presentation.viewmodel.AiChatViewModel
 import com.elysium.softwork.feedback.domain.model.ChatMessage
 import com.elysium.softwork.shared.presentation.theme.AccentDark
 import com.elysium.softwork.shared.presentation.theme.AccentMint

@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elysium.softwork.R
-import com.elysium.softwork.notifications.application.viewmodel.NotificationsViewModel
+import com.elysium.softwork.notifications.presentation.viewmodel.NotificationsViewModel
 import com.elysium.softwork.notifications.domain.model.Notification
 import com.elysium.softwork.shared.presentation.components.SoftWorkCard
 import com.elysium.softwork.shared.presentation.theme.AccentDark

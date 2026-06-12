@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elysium.softwork.R
-import com.elysium.softwork.payment.membership.application.viewmodel.MembershipViewModel
+import com.elysium.softwork.payment.membership.presentation.viewmodel.MembershipViewModel
 import com.elysium.softwork.payment.membership.domain.model.MembershipPlan
 import com.elysium.softwork.shared.presentation.components.SoftWorkCard
 import com.elysium.softwork.shared.presentation.theme.AccentDark

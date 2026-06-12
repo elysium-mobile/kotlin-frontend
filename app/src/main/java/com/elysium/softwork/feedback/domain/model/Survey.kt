@@ -1,20 +1,19 @@
 package com.elysium.softwork.feedback.domain.model
 
-import com.google.gson.annotations.SerializedName
-
 /**
  * A pending HR survey the worker is invited to answer.
  *
- * The same instance flows through the Retrofit web service request/response and into the
- * in-memory catalogue. All fields default to nullable-friendly empty values so partial
- * server responses do not crash deserialization.
+ * Immutable domain entity, framework-agnostic by design: property names match the backend
+ * wire keys exactly so the data layer's JSON serializer resolves them by reflection
+ * without mapping annotations. All fields default to empty values so partial payloads
+ * construct cleanly.
  *
  * @property id stable identifier issued by the backend (or a mock literal in the seed set).
  * @property title short headline rendered in the survey card.
  * @property description one-line context shown beneath the title.
  */
 data class Survey(
-    @SerializedName("id") val id: String = "",
-    @SerializedName("title") val title: String = "",
-    @SerializedName("description") val description: String = "",
+    val id: String = "",
+    val title: String = "",
+    val description: String = "",
 )

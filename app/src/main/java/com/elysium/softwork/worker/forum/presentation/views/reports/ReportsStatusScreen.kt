@@ -42,7 +42,7 @@ import com.elysium.softwork.shared.presentation.theme.PrimaryNavy
 import com.elysium.softwork.shared.presentation.theme.PrimarySky
 import com.elysium.softwork.shared.presentation.theme.Success
 import com.elysium.softwork.shared.presentation.theme.Warning
-import com.elysium.softwork.worker.forum.application.viewmodel.ReportsStatusViewModel
+import com.elysium.softwork.worker.forum.presentation.viewmodel.ReportsStatusViewModel
 import com.elysium.softwork.worker.forum.domain.model.ForumReport
 import com.elysium.softwork.shared.utils.values.ReportStatus
 import java.text.DateFormat

@@ -4,7 +4,7 @@ import com.elysium.softwork.iam.domain.model.User
 
 /**
  * UI-facing state for IAM flows (login, register, register-with-google). Exposed by
- * [com.elysium.softwork.iam.application.viewmodel.AuthViewModel] as a [kotlinx.coroutines.flow.StateFlow].
+ * [com.elysium.softwork.iam.presentation.viewmodel.AuthViewModel] as a [kotlinx.coroutines.flow.StateFlow].
  *
  * The states are intentionally coarse — granular field validation lives inside the form
  * state holder, this enum-like sealed hierarchy only describes the request lifecycle.

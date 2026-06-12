@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elysium.softwork.R
-import com.elysium.softwork.feedback.application.viewmodel.PendingSurveysViewModel
+import com.elysium.softwork.feedback.presentation.viewmodel.PendingSurveysViewModel
 import com.elysium.softwork.feedback.domain.model.Survey
 import com.elysium.softwork.shared.presentation.components.SoftWorkButton
 import com.elysium.softwork.shared.presentation.components.SoftWorkCard

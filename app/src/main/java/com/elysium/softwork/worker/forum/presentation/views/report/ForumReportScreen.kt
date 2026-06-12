@@ -52,7 +52,7 @@ import com.elysium.softwork.shared.presentation.theme.PrimaryNavy
 import com.elysium.softwork.shared.presentation.theme.PrimaryTeal
 import com.elysium.softwork.shared.utils.values.ReportArea
 import com.elysium.softwork.shared.utils.values.ReportType
-import com.elysium.softwork.worker.forum.application.viewmodel.ForumReportViewModel
+import com.elysium.softwork.worker.forum.presentation.viewmodel.ForumReportViewModel
 import com.elysium.softwork.worker.forum.presentation.components.Chip
 
 /**

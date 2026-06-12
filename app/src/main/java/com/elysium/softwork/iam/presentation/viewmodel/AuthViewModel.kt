@@ -1,4 +1,4 @@
-package com.elysium.softwork.iam.application.viewmodel
+package com.elysium.softwork.iam.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -7,7 +7,9 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import com.elysium.softwork.SoftWorkApplication
 import com.elysium.softwork.iam.application.AuthState
 import com.elysium.softwork.iam.application.AuthValidation
-import com.elysium.softwork.iam.data.store.AuthStore
+import com.elysium.softwork.iam.application.usecase.LoginUseCase
+import com.elysium.softwork.iam.application.usecase.RegisterUseCase
+import com.elysium.softwork.iam.application.usecase.RegisterWithGoogleUseCase
 import com.elysium.softwork.iam.domain.model.User
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,18 +17,26 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Hosts UI state for the IAM flows.
+ * UI state holder for the IAM flows (login, register, register-with-google).
  *
- * The ViewModel keeps two streams:
- * - [state] — request lifecycle ([com.elysium.softwork.iam.application.AuthState.Idle], [com.elysium.softwork.iam.application.AuthState.Loading], [com.elysium.softwork.iam.application.AuthState.Success],
- *   [com.elysium.softwork.iam.application.AuthState.Error]). Drives navigation and progress indicators.
- * - [form] — current form values + per-field validation. Drives the input rendering.
+ * The ViewModel owns no business logic: every authentication operation is delegated to an
+ * application-layer use case, and this class is limited to (a) buffering the form input,
+ * (b) deriving per-field validity flags for the screens, and (c) projecting the request
+ * lifecycle into the read-only [state] stream that drives navigation and progress UI.
  *
- * Validation lives in [com.elysium.softwork.iam.application.AuthValidation] and is recomputed on every keystroke; the screen
- * consumes the derived booleans to decide when to enable the primary button or show error
- * helper text.
+ * Two streams are exposed:
+ * - [state] — request lifecycle (`Idle`, `Loading`, `Success`, `Error`).
+ * - [form] — current form values plus derived validation flags, recomputed per keystroke.
+ *
+ * @param loginUseCase signs the worker in with corporate credentials.
+ * @param registerUseCase registers a new account with corporate credentials.
+ * @param registerWithGoogleUseCase registers a new account through the Google flow.
  */
-class AuthViewModel(private val authStore: AuthStore) : ViewModel() {
+class AuthViewModel(
+    private val loginUseCase: LoginUseCase,
+    private val registerUseCase: RegisterUseCase,
+    private val registerWithGoogleUseCase: RegisterWithGoogleUseCase,
+) : ViewModel() {
 
     /** Snapshot of the current form. Updated via the `on*Change` handlers. */
     data class FormState(
@@ -90,14 +100,14 @@ class AuthViewModel(private val authStore: AuthStore) : ViewModel() {
     // region Actions
     /**
      * Submits the login form. Strict validation (corporate-email format, 8+ char password)
-     * is intentionally relaxed for the mock-auth testing phase — the only requirement is
-     * that both fields contain something. Re-tighten this when the real backend is wired
-     * up. See `AuthValidation.isEmailValid` / `isPasswordValid` for the production rules.
+     * is intentionally relaxed while authentication runs against the mock backend — the
+     * only requirement is that both fields contain something. Re-tighten via
+     * `AuthValidation.isEmailValid` / `isPasswordValid` when the real backend is wired up.
      */
     fun submitLogin() {
         val current: FormState = _form.value
         if (current.email.isBlank() || current.password.isBlank()) return
-        runRequest { authStore.login(current.email.trim(), current.password) }
+        runRequest { loginUseCase(current.email, current.password) }
     }
 
     /** Submits the standard registration form. No-ops when validation fails. */
@@ -108,9 +118,9 @@ class AuthViewModel(private val authStore: AuthStore) : ViewModel() {
         if (!current.isPasswordValid) return
         if (!current.passwordsMatch) return
         runRequest {
-            authStore.register(
-                username = current.username.trim(),
-                email = current.email.trim(),
+            registerUseCase(
+                username = current.username,
+                email = current.email,
                 password = current.password,
                 role = current.role,
             )
@@ -121,9 +131,7 @@ class AuthViewModel(private val authStore: AuthStore) : ViewModel() {
     fun submitRegisterWithGoogle() {
         val current: FormState = _form.value
         if (!current.isUsernameValid) return
-        runRequest {
-            authStore.registerWithGoogle(username = current.username.trim(), role = current.role)
-        }
+        runRequest { registerWithGoogleUseCase(username = current.username, role = current.role) }
     }
     // endregion
 
@@ -143,7 +151,7 @@ class AuthViewModel(private val authStore: AuthStore) : ViewModel() {
         private const val GENERIC_ERROR: String = "Unexpected error"
 
         /**
-         * Factory that pulls the [AuthStore] from the [com.elysium.softwork.SoftWorkApplication] service locator.
+         * Factory that assembles the IAM use cases from the application service locator.
          *
          * Use it inside Composables:
          * ```
@@ -154,7 +162,12 @@ class AuthViewModel(private val authStore: AuthStore) : ViewModel() {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
                 val application = extras[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as SoftWorkApplication
-                return AuthViewModel(application.serviceLocator.authStore) as T
+                val store = application.serviceLocator.authStore
+                return AuthViewModel(
+                    loginUseCase = LoginUseCase(store),
+                    registerUseCase = RegisterUseCase(store),
+                    registerWithGoogleUseCase = RegisterWithGoogleUseCase(store),
+                ) as T
             }
         }
     }

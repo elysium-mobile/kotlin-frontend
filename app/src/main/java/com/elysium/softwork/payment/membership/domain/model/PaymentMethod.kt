@@ -1,12 +1,11 @@
 package com.elysium.softwork.payment.membership.domain.model
 
-import com.google.gson.annotations.SerializedName
-
 /**
  * A saved payment instrument associated with the worker's profile.
  *
- * The same instance flows through the Retrofit web service request/response and into the
- * in-memory catalogue, so all fields default to empty.
+ * Immutable domain entity, framework-agnostic by design: property names match the backend
+ * wire keys exactly so the data layer's JSON serializer resolves them by reflection
+ * without mapping annotations.
  *
  * SECURITY: this class describes a tokenized reference returned by the payment processor.
  * It is never used to carry a raw PAN — only [last4] is safe to display, and even that is
@@ -22,9 +21,9 @@ import com.google.gson.annotations.SerializedName
  * @property expiryMonthYear expiry in the user-entered `MM/YY` form (e.g. "01/27").
  */
 data class PaymentMethod(
-    @SerializedName("id") val id: String = "",
-    @SerializedName("brand") val brand: String = "",
-    @SerializedName("holderName") val holderName: String = "",
-    @SerializedName("last4") val last4: String = "",
-    @SerializedName("expiryMonthYear") val expiryMonthYear: String = "",
+    val id: String = "",
+    val brand: String = "",
+    val holderName: String = "",
+    val last4: String = "",
+    val expiryMonthYear: String = "",
 )

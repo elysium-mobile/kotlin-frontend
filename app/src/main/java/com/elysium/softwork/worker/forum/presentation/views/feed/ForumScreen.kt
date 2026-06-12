@@ -33,7 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elysium.softwork.R
 import com.elysium.softwork.shared.utils.values.ForumCategory
-import com.elysium.softwork.worker.forum.application.viewmodel.ForumViewModel
+import com.elysium.softwork.worker.forum.presentation.viewmodel.ForumViewModel
 import com.elysium.softwork.worker.forum.domain.model.Post
 import com.elysium.softwork.worker.forum.presentation.components.AnonymousBadge
 import com.elysium.softwork.worker.forum.presentation.components.CategoryChips
