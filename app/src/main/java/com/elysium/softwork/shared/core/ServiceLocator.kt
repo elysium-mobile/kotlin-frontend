@@ -16,6 +16,7 @@ import com.elysium.softwork.worker.forum.data.store.ForumReportStoreImpl
 import com.elysium.softwork.worker.forum.domain.ForumReportStore
 import com.elysium.softwork.feedback.data.store.FeedbackStore
 import com.elysium.softwork.feedback.data.store.FeedbackStoreImpl
+import com.elysium.softwork.feedback.data.network.SurveyWebService
 import com.elysium.softwork.feedback.data.store.SurveyStore
 import com.elysium.softwork.feedback.data.store.SurveyStoreImpl
 import com.elysium.softwork.notifications.data.store.NotificationStore
@@ -80,7 +81,11 @@ class ServiceLocator(context: Context) {
         ForumReportStoreImpl(webService = forumReportWebService)
     }
 
-    val surveyStore: SurveyStore by lazy { SurveyStoreImpl(appContext) }
+    private val surveyWebService: SurveyWebService by lazy {
+        ApiClient.retrofit.create(SurveyWebService::class.java)
+    }
+
+    val surveyStore: SurveyStore by lazy { SurveyStoreImpl(surveyWebService, gson) }
 
     val feedbackStore: FeedbackStore by lazy { FeedbackStoreImpl() }
 

@@ -635,6 +635,12 @@ hook.
 
 ### ✅ Phase 5 (in progress) — Feedback bounded context
 
+> **⚠️ Superseded by Phase 10 (Feedback backend integration).** The survey stack now talks
+> to the live Spring Boot API — `SurveyStoreImpl` is Retrofit-backed (no more string-resource
+> mock), the `Survey` bean carries the real (annotation-free) wire keys, and `QuestionSurvey`
+> / `SurveyResponse` beans + a submission use case were added. See the Phase 10 section below.
+> The historical Phase 5 notes are retained for context.
+
 - **Domain**: [`Survey`](app/src/main/java/com/elysium/softwork/feedback/domain/model/Survey.kt)
   data class with `id` / `title` / `description`, annotated with `@SerializedName` per the
   bean shortcut so it doubles as the future wire bean.
@@ -982,6 +988,54 @@ server-side, so the device sends only the display name).
   backend `sign-up/employee` also requires `dni`/`lastName`/`phoneNumber`/`dateStart`/
   `position`/`salary`. Those land via a fuller form later — until then the 400 handler
   surfaces the backend's field errors (e.g. the DNI length rule) inline.
+
+### ✅ Phase 10 — Feedback backend integration against the live Spring Boot API
+
+The `feedback` survey stack now talks to the real FlowWork backend. All survey mocks are
+deleted; the AI-chat sub-context (`FeedbackStore`/`AiChatViewModel`) is untouched.
+
+- **Domain (`feedback/domain/model/`)** — three annotation-free beans matching the backend's
+  mixed snake/camelCase contract, with asymmetric request/response keys coexisting as nullable
+  fields (no `@SerializedName`):
+  - [`Survey`](app/src/main/java/com/elysium/softwork/feedback/domain/model/Survey.kt):
+    `survey_id`, `title`, `description`, `targetType`/`target_type`,
+    `expirationType`/`expiration_time`. (Replaces the old non-null `id`/`title`/`description`.)
+  - [`QuestionSurvey`](app/src/main/java/com/elysium/softwork/feedback/domain/model/QuestionSurvey.kt):
+    `question_survey_id`, `textQuestion`/`text_question`, `questionType`/`question_type`,
+    `surveyId`/`survey_id`.
+  - [`SurveyResponse`](app/src/main/java/com/elysium/softwork/feedback/domain/model/SurveyResponse.kt):
+    `survey_response_id`, `surveyId`/`survey_id`, `employeeProfileId`/`employee_profile_id`,
+    `submittedAt`/`submitted_at`, `commentary`, `cause`.
+- **Network (`feedback/data/network/SurveyWebService`)** — relative paths only:
+  `GET api/v1/surveys`, `GET api/v1/surveys/{id}`, `GET api/v1/question-surveys`,
+  `GET api/v1/question-surveys/{id}`, `POST api/v1/question-surveys`,
+  `POST api/v1/survey-responses`, `GET api/v1/survey-responses`,
+  `GET api/v1/survey-responses/survey/{surveyId}`.
+- **Store (`feedback/data/store/SurveyStoreImpl`)** — mock + string-resource catalogue
+  deleted; now `SurveyStoreImpl(webService, gson)`. `getPendingSurveys()` stays a `Flow`
+  (single-shot, off `GET /surveys`); `getSurveyQuestions(surveyId)` fetches `GET /question-surveys`
+  and filters by `survey_id` client-side (no server-side filter exists); `getSurveyResponses(surveyId)`
+  hits the filtered `survey/{surveyId}` route; `submitSurveyResponse(...)` POSTs. A `400`
+  parses into `BadRequestException` via the shared `unwrap`/`throwTyped` pattern.
+- **Application (`SubmitSurveyResponseUseCase`)** — resolves `employee_profile_id` dynamically
+  from `SharedPrefsManager.KEY_EMPLOYEE_PROFILE_ID` (cached during the Phase 9 post-login
+  sync), trims the text fields, defaults `submittedAt` to `LocalDate.now()`, and binds the
+  camelCase request keys.
+- **Presentation (`PendingSurveysViewModel`)** — gains `submitResponse(...)`, `isSubmitting`,
+  and an `errorMessage: StateFlow<String?>`; a `400` is caught, its `field_errors` extracted
+  via `primaryFieldError()`, and routed into `errorMessage`. `PendingSurveysScreen` reads the
+  nullable bean (`title.orEmpty()`, `key = survey_id`), forwards `survey_id: Long?` to
+  `onStartSurvey`, and renders `errorMessage` as a `Danger` banner.
+- **Wiring**: `ServiceLocator` now owns `surveyWebService` and builds
+  `SurveyStoreImpl(surveyWebService, gson)`.
+
+#### Phase 10 caveats
+
+- **No answer-flow screen yet.** `onStartSurvey` is still an unwired no-op; `getSurveyQuestions`
+  / `getSurveyResponses` / `submitResponse` are implemented and ready for a survey-detail
+  screen that collects answers and calls `PendingSurveysViewModel.submitResponse(...)`.
+- The old `survey_*` string resources (climate/productivity seed copy) are now dead and can
+  be pruned in a follow-up cleanup.
 
 ### 🔜 Next — Phase (IMPLEMENTATION WITH REAL BACKEND API)
 
