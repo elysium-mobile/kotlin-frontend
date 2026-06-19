@@ -1,6 +1,7 @@
 package com.elysium.softwork.shared.core
 
 import android.content.Context
+import com.google.gson.Gson
 import com.elysium.softwork.worker.forum.data.local.ForumDatabase
 import com.elysium.softwork.worker.forum.data.network.PostWebService
 import com.elysium.softwork.worker.forum.data.store.PostStore
@@ -42,11 +43,24 @@ class ServiceLocator(context: Context) {
 
     val sharedPrefsManager: SharedPrefsManager by lazy { SharedPrefsManager(appContext) }
 
+    /**
+     * Installs the session-token supplier on [ApiClient] so [AuthInterceptor] can attach the
+     * `Authorization: Bearer <token>` header to every authenticated request. Performed in the
+     * constructor — before any store can trigger a network call — and reads the token live on
+     * each request, so a fresh login or a logout is reflected immediately.
+     */
+    init {
+        ApiClient.installTokenProvider { sharedPrefsManager.getString(SharedPrefsManager.KEY_AUTH_TOKEN) }
+    }
+
+    /** Process-wide Gson used to deserialize structured error payloads (e.g. [BadRequestResponse]). */
+    private val gson: Gson by lazy { Gson() }
+
     private val authWebService: AuthWebService by lazy {
         ApiClient.retrofit.create(AuthWebService::class.java)
     }
 
-    val authStore: AuthStore by lazy { AuthStoreImpl(authWebService, sharedPrefsManager) }
+    val authStore: AuthStore by lazy { AuthStoreImpl(authWebService, sharedPrefsManager, gson) }
 
     private val forumDatabase: ForumDatabase by lazy { ForumDatabase.create(appContext) }
 

@@ -20,6 +20,13 @@ sealed interface AuthState {
     /** Last call completed successfully. The screen should navigate forward. */
     data class Success(val user: User) : AuthState
 
+    /**
+     * Authentication succeeded but the worker's membership is **not** active. The screen must
+     * route straight into the payment context onboarding instead of the main shell — this is
+     * the membership-interception signal. Carries the resolved [user] for downstream context.
+     */
+    data class MembershipRequired(val user: User) : AuthState
+
     /** Last call failed. [message] is a localized, user-facing reason. */
     data class Error(val message: String) : AuthState
 }

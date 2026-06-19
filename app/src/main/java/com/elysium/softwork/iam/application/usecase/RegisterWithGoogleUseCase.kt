@@ -4,24 +4,26 @@ import com.elysium.softwork.iam.data.store.AuthStore
 import com.elysium.softwork.iam.domain.model.User
 
 /**
- * Registers a new worker account through the Google identity flow (no password collected).
+ * Registers a Google-linked employee account through the `sign-up/employee` endpoint.
  *
- * Owns the input-normalization business rule: the username is trimmed before it reaches
- * the data port.
+ * The backend exposes no dedicated Google route, so the Gmail registration path reuses the
+ * standard employee sign-up — the Google identity resolves the email server-side and only
+ * the display name is collected on-device. This use case owns the input-normalization rule
+ * (the name is trimmed before it reaches the data port).
  *
- * Stateless and allocation-free per call; safe to share a single instance process-wide.
+ * Stateless and allocation-free per call; safe to share a single instance process-wide. The
+ * client is employee-exclusive, so there is no role parameter.
  *
  * @param store IAM data port that performs the network call and persists the session.
  */
 class RegisterWithGoogleUseCase(private val store: AuthStore) {
 
     /**
-     * Executes the Google-flow registration.
+     * Executes the Google-linked registration.
      *
-     * @param username display name; trimmed before dispatch.
-     * @param role business role string emitted by this client (always `"EMPLOYEE"`).
+     * @param name display name; trimmed before dispatch.
      * @return [Result.success] with the created [User] or [Result.failure] on error.
      */
-    suspend operator fun invoke(username: String, role: String): Result<User> =
-        store.registerWithGoogle(username = username.trim(), role = role)
+    suspend operator fun invoke(name: String): Result<User> =
+        store.registerWithGoogle(name = name.trim())
 }

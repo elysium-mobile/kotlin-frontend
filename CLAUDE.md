@@ -562,6 +562,12 @@ class. AppCompatActivity remains fully Compose-compatible — `enableEdgeToEdge(
 
 ### 🧪 Mock Testing Harness (temporary — for UI walkthroughs before the backend lands)
 
+> **⚠️ Superseded for IAM (Phase 9).** Items **#1 and #2 below no longer apply** — the IAM
+> stack now talks to the live Spring Boot API (see "Phase 9 — Backend integration (IAM +
+> shared)" below). `AuthStoreImpl.login` is real, the `MOCK_*` companion is deleted, and the
+> only remaining shortcut is **#3 (forum seed)**, which is out of Phase 9's scope and still
+> active. The #1/#2 text is retained for historical context only.
+
 To let the team exercise the full login → home → forum → profile → logout journey without
 a reachable backend, three deliberate shortcuts are layered on top of the real stack.
 **All three are reversible single-file edits** and must be undone before the first
@@ -900,13 +906,91 @@ the platform-painted background matches the Compose-painted background from the
 very first frame onward. This pin is what prevents a "black until Compose
 paints" window on devices in system dark mode.
 
+### ✅ Phase 9 — Backend integration (IAM + shared) against the live Spring Boot API
+
+The IAM and shared contexts now talk to the real FlowWork backend (contract in
+`API_DOCUMENTATION.md`). All IAM mocks are deleted. **Employee-exclusive**: the HR/RRHH
+sign-up route and the `RoleSelectorCard` are removed — the role picker is gone because
+`sign-up/employee` already scopes every account to the worker experience. **Dual
+registration is preserved**: both the standard `RegisterScreen` and the Gmail
+`RegisterGoogleScreen` flow through the *same* `POST /api/v1/authentication/sign-up/employee`
+endpoint (the backend has no dedicated Google route — the Google identity resolves the email
+server-side, so the device sends only the display name).
+
+- **Network (`shared/data/network/`)**:
+  - `ApiClient` sources the base URL exclusively from `BuildConfig.BACKEND_BASE_URL` and now
+    chains [`AuthInterceptor`](app/src/main/java/com/elysium/softwork/shared/data/network/AuthInterceptor.kt)
+    **first** in the OkHttp chain. The interceptor reads the live JWT per request via a
+    provider installed by `ServiceLocator` (`ApiClient.installTokenProvider { … KEY_AUTH_TOKEN }`),
+    attaches `Authorization: Bearer <token>`, and **skips** the public auth paths
+    (`/authentication/sign-in`, `/authentication/sign-up/employee`) by path-suffix match.
+    `ApiClient` stays a `Context`-free `object`; the token supplier is the only new state.
+  - [`BadRequestResponse`](app/src/main/java/com/elysium/softwork/shared/data/network/BadRequestResponse.kt)
+    mirrors the backend 400 payload (`status` / `error` / `message` / `field_errors`), with
+    `primaryFieldError()` preferring the `"argument"` key. A sibling `BadRequestException`
+    carries the parsed payload through the `Result` failure channel.
+- **Persistence (`shared/data/local/SharedPrefsManager`)**: added `getLong` / `putLong` and
+  keys `KEY_USER_ACCOUNT_ID` (Long), `KEY_EMPLOYEE_PROFILE_ID` (Long), `KEY_USER_EMAIL`,
+  `KEY_USER_PASSWORD`. The plaintext password is **required** for re-authentication (see
+  below). `KEY_USER_ID` was removed (superseded by `KEY_USER_ACCOUNT_ID`).
+- **Domain (`iam/domain/model/User`)**: one annotation-free bean spans `sign-in`,
+  `sign-up/employee`, and `employee-profile`. Asymmetric wire keys coexist as nullable
+  fields: `email` (request) vs `gmail` (response); `start_date` (request) vs `dateStart`
+  (response); plus `id`/`user_account_id`/`employee_profile_id`, the employee sign-up
+  payload, and a forward-looking `membershipStatus`. `id` is now `Long?`. `isMembershipActive()`
+  treats only `"ACTIVE"` as active (null ⇒ not active).
+- **Network service (`iam/data/network/AuthWebService`)**: exact live routes —
+  `POST api/v1/authentication/sign-in`, `POST api/v1/authentication/sign-up/employee`,
+  `GET api/v1/employee-profile` (returns `List<User>`). Relative paths only.
+- **Store (`iam/data/store/AuthStoreImpl`)**: mocks + `MOCK_*` companion + `delay` deleted.
+  `login`/`register`/`registerWithGoogle` funnel through `persistSessionAndSyncProfile`,
+  which (1) persists token, account id, and credentials, then (2) runs the **sequential**
+  `employee-profile` lookup, matching the worker's row by `user_account_id` and persisting
+  `employee_profile_id` (best-effort — a profile hiccup never voids a valid session).
+  `registerWithGoogle(name)` reuses `signUpEmployee` and stores a blank password (Google
+  re-auth, not `reauthenticate`). `unwrap` parses a 400 into `BadRequestException`;
+  `reauthenticate()` re-runs `sign-in` from the stored credentials (no refresh endpoint
+  exists — used after a membership payment).
+- **Application / presentation**:
+  - `RegisterUseCase` drops `role` (`name`/`email`/`password`). `RegisterWithGoogleUseCase`
+    drops `role` and takes the display `name` only (routed to `sign-up/employee`).
+  - `AuthState` gains `MembershipRequired(user)`. `AuthViewModel` removes `role`, keeps the
+    `submitRegisterWithGoogle` action, adds `FormState.fieldError`, lifts a 400 `field_errors`
+    message (the DNI rule) onto both the error state and `fieldError`, and on login branches
+    `Success` vs `MembershipRequired` by membership status.
+  - `LoginScreen` routes `MembershipRequired → onMembershipRequired` (wired to the host's
+    `onAuthComplete`), so an inactive membership lands the worker in `PaymentOnboardingHost`
+    via the existing Phase 7 gate. The `GoogleOutlineButton` entry point is retained.
+  - `RegisterScreen` and `RegisterGoogleScreen` drop `RoleSelectorCard` and render
+    `fieldError` under the identity input. The `register-google` destination is retained in
+    `AuthRoutes`/`AuthNavHost`.
+- **Tests**: `FakeAuthStore` + `AuthViewModelTest` updated to the new signatures (including
+  `registerWithGoogle(name)`), plus new coverage for the `MembershipRequired` branch and the
+  400 → `fieldError` path.
+
+#### Phase 9 caveats / follow-ups
+
+- **Membership source is still local.** The reactive gate reads `KEY_HAS_MEMBERSHIP`
+  (Phase 7). The backend currently returns no `membershipStatus` on `sign-in`, so every
+  fresh login is treated as not-active and routed to payment onboarding (the intended demo
+  flow). When the backend begins sending `membershipStatus`, route an `ACTIVE` login through
+  `MembershipStore.activateMembership(...)` so the gate's `StateFlow` opens reactively.
+- **`reauthenticate()` is implemented but not yet wired** into the payment-success flow
+  (that wiring lives in `payment.membership`, outside this change's scope). After a
+  successful payment, call `authStore.reauthenticate()` to refresh the token.
+- **Registration is intentionally minimal.** The form collects name/email/password only; the
+  backend `sign-up/employee` also requires `dni`/`lastName`/`phoneNumber`/`dateStart`/
+  `position`/`salary`. Those land via a fuller form later — until then the 400 handler
+  surfaces the backend's field errors (e.g. the DNI length rule) inline.
+
 ### 🔜 Next — Phase (IMPLEMENTATION WITH REAL BACKEND API)
 
 - Comment domain + store + WebService backing `ThreadScreen`.
 - Image / attachment picker for the new-post composer.
 - Real user/profile data sourced from a `ProfileStore` (replace placeholder strings).
 - Forgot-password flow.
-- Auth header interceptor on `ApiClient` once the backend session contract is finalized.
+- Wire `AuthStore.reauthenticate()` into `PaymentSuccessScreen`; route `ACTIVE`-membership
+  logins through `MembershipStore` once the backend reports `membershipStatus`.
 
 ---
 

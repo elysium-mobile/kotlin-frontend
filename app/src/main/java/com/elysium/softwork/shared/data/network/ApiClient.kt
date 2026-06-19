@@ -19,13 +19,37 @@ import retrofit2.converter.gson.GsonConverterFactory
  * - `BuildConfig.API_KEY_GEMINI` / `API_KEY_EXTERNAL_SERVICE` — consumed by
  *   [ApiKeyInterceptor] to attach third-party credentials on a per-host basis.
  *
+ * The session JWT is attached by [AuthInterceptor], which reads the live token through the
+ * provider installed via [installTokenProvider]. The provider is wired by `ServiceLocator`
+ * to `SharedPrefsManager.KEY_AUTH_TOKEN` before the first network call, so this object keeps
+ * its no-`Context` `object` shape while still reflecting session changes per request.
+ *
  * Debug builds get an [HttpLoggingInterceptor] at `BODY` level for inspecting requests in
  * Logcat; release builds omit it entirely (the dependency is `debugImplementation` only).
  */
 object ApiClient {
 
+    /**
+     * Live JWT supplier consulted by [AuthInterceptor] on every authenticated request.
+     * Defaults to a no-session provider so a build that forgets to wire it simply sends no
+     * `Authorization` header rather than crashing. `@Volatile` so the install performed on
+     * the main thread during `Application.onCreate` is visible to OkHttp's dispatcher threads.
+     */
+    @Volatile
+    private var tokenProvider: () -> String? = { null }
+
+    /**
+     * Registers the [provider] used to resolve the current session token for outgoing
+     * requests. Idempotent and cheap; call it once from `ServiceLocator` before any store
+     * triggers a network call.
+     */
+    fun installTokenProvider(provider: () -> String?) {
+        tokenProvider = provider
+    }
+
     private val okHttpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
+            .addInterceptor(AuthInterceptor { tokenProvider() })
             .addInterceptor(
                 ApiKeyInterceptor(
                     geminiApiKey = BuildConfig.API_KEY_GEMINI,

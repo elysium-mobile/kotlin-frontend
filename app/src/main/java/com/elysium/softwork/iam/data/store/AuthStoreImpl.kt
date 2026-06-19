@@ -3,88 +3,151 @@ package com.elysium.softwork.iam.data.store
 import com.elysium.softwork.iam.data.network.AuthWebService
 import com.elysium.softwork.iam.domain.model.User
 import com.elysium.softwork.shared.data.local.SharedPrefsManager
-import kotlinx.coroutines.delay
+import com.elysium.softwork.shared.data.network.BadRequestException
+import com.elysium.softwork.shared.data.network.BadRequestResponse
+import com.google.gson.Gson
 import retrofit2.Response
 
 /**
- * Concrete [AuthStore]. Orchestrates [AuthWebService] calls and persists the JWT in
- * [SharedPrefsManager] so the session survives process death.
+ * Concrete [AuthStore] backed by the live FlowWork Spring Boot API.
  *
- * Each public method funnels its work through [callAndPersist], which:
- * 1. Catches network/HTTP failures and surfaces them as [Result.failure].
- * 2. Persists the returned token (when present) to local storage.
+ * Responsibilities:
+ * 1. Drive the real [AuthWebService] (`sign-in`, `sign-up/employee`, `employee-profile`) —
+ *    there is **no** mock harness here.
+ * 2. On a successful authentication, persist the session (token, user-account id, and the
+ *    credentials needed for [reauthenticate]) and then run the **sequential** employee-profile
+ *    sync that resolves and stores `employee_profile_id`.
+ * 3. Convert transport/HTTP failures into a single [Result] error channel; a `400` is parsed
+ *    into a [BadRequestException] so the presentation layer can surface field-level messages.
  *
- * This keeps the per-endpoint methods declarative.
- *
- * **Testing phase note:** [login] is currently mocked — it bypasses the WebService entirely,
- * simulates a 1 s round-trip, and returns a fixed [User] + [MOCK_TOKEN]. Switch back to
- * `callAndPersist { webService.login(...) }` when the backend is reachable.
+ * @param webService Retrofit contract for the IAM endpoints.
+ * @param prefs persistent session storage (token, ids, credentials).
+ * @param gson deserializer for the structured `400` validation payload.
  */
 class AuthStoreImpl(
     private val webService: AuthWebService,
     private val prefs: SharedPrefsManager,
+    private val gson: Gson,
 ) : AuthStore {
 
     override suspend fun login(email: String, password: String): Result<User> = runCatching {
-        delay(MOCK_DELAY_MS)
-        val user = User(
-            id = MOCK_USER_ID,
-            username = MOCK_USERNAME,
-            email = email.ifBlank { MOCK_EMAIL },
-            role = MOCK_ROLE,
-            token = MOCK_TOKEN,
-        )
-        prefs.putString(SharedPrefsManager.KEY_AUTH_TOKEN, MOCK_TOKEN)
-        prefs.putString(SharedPrefsManager.KEY_USER_ID, MOCK_USER_ID)
+        val user = unwrap(webService.signIn(User(email = email, password = password)))
+        persistSessionAndSyncProfile(user, email, password)
         user
     }
 
-    override suspend fun register(
-        username: String,
-        email: String,
-        password: String,
-        role: String,
-    ): Result<User> = callAndPersist {
-        webService.register(
-            User(username = username, email = email, password = password, role = role),
-        )
+    override suspend fun register(name: String, email: String, password: String): Result<User> =
+        runCatching {
+            val user = unwrap(
+                webService.signUpEmployee(User(name = name, email = email, password = password)),
+            )
+            persistSessionAndSyncProfile(user, email, password)
+            user
+        }
+
+    override suspend fun registerWithGoogle(name: String): Result<User> = runCatching {
+        // Same `sign-up/employee` endpoint; the Google identity provides the email
+        // server-side, so the device sends only the display name. No local password exists
+        // for a Google-linked account, so the persisted credential is left blank — a later
+        // session renewal goes through Google, not [reauthenticate].
+        val user = unwrap(webService.signUpEmployee(User(name = name)))
+        persistSessionAndSyncProfile(user, email = user.gmail ?: user.email.orEmpty(), password = "")
+        user
     }
 
-    override suspend fun registerWithGoogle(username: String, role: String): Result<User> =
-        callAndPersist { webService.registerWithGoogle(User(username = username, role = role)) }
+    override suspend fun reauthenticate(): Result<User> {
+        val email = prefs.getString(SharedPrefsManager.KEY_USER_EMAIL)
+        val password = prefs.getString(SharedPrefsManager.KEY_USER_PASSWORD)
+        if (email.isNullOrBlank() || password.isNullOrBlank()) {
+            return Result.failure(IllegalStateException("No stored credentials to re-authenticate with"))
+        }
+        return login(email, password)
+    }
 
     override fun activeToken(): String? = prefs.getString(SharedPrefsManager.KEY_AUTH_TOKEN)
 
     override fun clearSession() {
         prefs.remove(SharedPrefsManager.KEY_AUTH_TOKEN)
-        prefs.remove(SharedPrefsManager.KEY_USER_ID)
+        prefs.remove(SharedPrefsManager.KEY_USER_ACCOUNT_ID)
+        prefs.remove(SharedPrefsManager.KEY_EMPLOYEE_PROFILE_ID)
+        prefs.remove(SharedPrefsManager.KEY_USER_EMAIL)
+        prefs.remove(SharedPrefsManager.KEY_USER_PASSWORD)
     }
 
     /**
-     * Executes [block], unwraps the [Response], and writes the token + user id to local
-     * storage when the call succeeds. HTTP errors and thrown exceptions become
-     * [Result.failure].
+     * Persists the authenticated session and runs the post-login routine the integration
+     * contract requires:
+     *  1. Store the JWT (so [com.elysium.softwork.shared.data.network.AuthInterceptor]
+     *     authorizes the very next call), the user-account id, and the credentials for
+     *     [reauthenticate].
+     *  2. Sequentially call `GET /api/v1/employee-profile`, match this account's row, and
+     *     persist its `employee_profile_id`.
+     *
+     * The token is mandatory; its absence aborts the flow as a failure. The profile sync is
+     * best-effort — a profile lookup hiccup must not invalidate an otherwise good session.
      */
-    private suspend inline fun callAndPersist(crossinline block: suspend () -> Response<User>): Result<User> =
+    private suspend fun persistSessionAndSyncProfile(user: User, email: String, password: String) {
+        val token = user.token ?: error("Authentication response is missing the token")
+        prefs.putString(SharedPrefsManager.KEY_AUTH_TOKEN, token)
+        prefs.putString(SharedPrefsManager.KEY_USER_EMAIL, email)
+        prefs.putString(SharedPrefsManager.KEY_USER_PASSWORD, password)
+        user.id?.let { prefs.putLong(SharedPrefsManager.KEY_USER_ACCOUNT_ID, it) }
+
+        user.id?.let { accountId -> syncEmployeeProfile(accountId) }
+    }
+
+    /**
+     * Resolves and persists the worker's `employee_profile_id`.
+     *
+     * The list endpoint returns every profile, so the worker's row is found by matching
+     * [User.user_account_id] against [accountId]. Wrapped so any failure (network, empty
+     * list, profile not yet provisioned) is swallowed — the session remains valid even when
+     * the profile id cannot be resolved this round.
+     */
+    private suspend fun syncEmployeeProfile(accountId: Long) {
         runCatching {
-            val response = block()
-            if (!response.isSuccessful) {
-                error("HTTP ${response.code()} ${response.message().ifBlank { "request failed" }}")
-            }
-            val body = response.body() ?: error("Empty response body")
-            body.token?.let { prefs.putString(SharedPrefsManager.KEY_AUTH_TOKEN, it) }
-            body.id?.let { prefs.putString(SharedPrefsManager.KEY_USER_ID, it) }
-            body
+            val response = webService.getEmployeeProfiles()
+            if (!response.isSuccessful) return
+            val profileId = response.body()
+                ?.firstOrNull { it.user_account_id == accountId }
+                ?.employee_profile_id
+                ?: return
+            prefs.putLong(SharedPrefsManager.KEY_EMPLOYEE_PROFILE_ID, profileId)
         }
+    }
+
+    /**
+     * Unwraps a Retrofit [response] into its body or throws a typed failure.
+     *
+     * - `2xx` with a body → the body.
+     * - `400` → [BadRequestException] carrying the parsed [BadRequestResponse] (so the
+     *   `field_errors` map reaches the form state).
+     * - any other non-2xx / empty body → [IllegalStateException] with the status line.
+     */
+    private fun unwrap(response: Response<User>): User {
+        if (response.isSuccessful) {
+            return response.body() ?: error("Empty response body")
+        }
+        val rawError: String? = runCatching { response.errorBody()?.string() }.getOrNull()
+        if (response.code() == HTTP_BAD_REQUEST) {
+            throw parseBadRequest(rawError)
+        }
+        error("HTTP ${response.code()} ${response.message().ifBlank { rawError ?: "request failed" }}")
+    }
+
+    /**
+     * Deserializes a `400` body into a [BadRequestException]. Falls back to wrapping the raw
+     * text in [BadRequestResponse.message] when the payload is absent or not the expected
+     * shape, so the caller always receives a usable message.
+     */
+    private fun parseBadRequest(rawError: String?): BadRequestException {
+        val parsed: BadRequestResponse = rawError
+            ?.let { runCatching { gson.fromJson(it, BadRequestResponse::class.java) }.getOrNull() }
+            ?: BadRequestResponse(message = rawError)
+        return BadRequestException(parsed)
+    }
 
     private companion object {
-        // Mock-auth constants — delete this block (and restore the original `callAndPersist`
-        // call in [login]) when the real backend is wired up.
-        const val MOCK_DELAY_MS: Long = 1_000L
-        const val MOCK_TOKEN: String = "MOCK_TOKEN_123"
-        const val MOCK_USER_ID: String = "1"
-        const val MOCK_USERNAME: String = "Cesar"
-        const val MOCK_EMAIL: String = "cesar@gmail.com"
-        const val MOCK_ROLE: String = "EMPLOYEE"
+        const val HTTP_BAD_REQUEST: Int = 400
     }
 }

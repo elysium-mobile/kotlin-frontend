@@ -64,6 +64,9 @@ fun AuthNavHost(
                         popUpTo(AuthRoutes.LOGIN) { inclusive = false }
                     }
                 },
+                // Membership interception: skip the success screen and hand control to the
+                // host, which mounts the payment onboarding gate when no active membership.
+                onMembershipRequired = onAuthComplete,
                 onNavigateToRegister = { navController.navigate(AuthRoutes.REGISTER) },
                 onNavigateToRegisterWithGoogle = { navController.navigate(AuthRoutes.REGISTER_GOOGLE) },
                 onForgotPassword = { /* Forgot-password flow is not yet implemented. */ },

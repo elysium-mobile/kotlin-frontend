@@ -53,14 +53,17 @@ import com.elysium.softwork.shared.presentation.theme.PrimarySky
  * inputs → forgot-password link (right-aligned) → primary "Sign in" button →
  * outline Google button → footer link to register.
  *
- * @param onLoginSuccess invoked when the auth call completes successfully.
+ * @param onLoginSuccess invoked when the worker authenticates with an active membership.
+ * @param onMembershipRequired invoked when authentication succeeds but the membership is not
+ *   active — the host routes straight into the payment onboarding gate.
  * @param onNavigateToRegister opens the standard register flow.
- * @param onNavigateToRegisterWithGoogle opens the Google-flow register screen.
+ * @param onNavigateToRegisterWithGoogle opens the Gmail-registration flow.
  * @param onForgotPassword opens the forgot-password flow (currently a no-op placeholder).
  */
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
+    onMembershipRequired: () -> Unit,
     onNavigateToRegister: () -> Unit,
     onNavigateToRegisterWithGoogle: () -> Unit,
     onForgotPassword: () -> Unit,
@@ -71,9 +74,16 @@ fun LoginScreen(
     val form: AuthViewModel.FormState by viewModel.form.collectAsStateWithLifecycle()
 
     LaunchedEffect(state) {
-        if (state is AuthState.Success) {
-            onLoginSuccess()
-            viewModel.consumeState()
+        when (state) {
+            is AuthState.Success -> {
+                onLoginSuccess()
+                viewModel.consumeState()
+            }
+            is AuthState.MembershipRequired -> {
+                onMembershipRequired()
+                viewModel.consumeState()
+            }
+            else -> Unit
         }
     }
 

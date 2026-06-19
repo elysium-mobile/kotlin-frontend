@@ -35,7 +35,6 @@ import com.elysium.softwork.iam.application.AuthState
 import com.elysium.softwork.iam.presentation.viewmodel.AuthViewModel
 import com.elysium.softwork.iam.presentation.components.BackTopBar
 import com.elysium.softwork.iam.presentation.components.PasswordVisibilityToggle
-import com.elysium.softwork.iam.presentation.components.RoleSelectorCard
 import com.elysium.softwork.iam.presentation.components.VerifiedDomainChip
 import com.elysium.softwork.shared.utils.discriminators.ButtonVariant
 import com.elysium.softwork.shared.presentation.components.SoftWorkButton
@@ -111,8 +110,19 @@ fun RegisterScreen(
                 onValueChange = viewModel::onEmailChange,
                 label = stringResource(R.string.corporate_email_label_register),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                isError = form.email.isNotEmpty() && !form.isEmailFormatValid,
+                isError = (form.email.isNotEmpty() && !form.isEmailFormatValid) || form.fieldError != null,
             )
+
+            // Backend field-validation message (e.g. the DNI length rule) surfaced under the
+            // identity input. Populated from the parsed `field_errors` map on a 400 response.
+            form.fieldError?.let { fieldError ->
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = fieldError,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
 
             AnimatedVisibility(visible = form.isCorporateDomain) {
                 Column {
@@ -153,10 +163,6 @@ fun RegisterScreen(
                 },
                 isError = form.confirmPassword.isNotEmpty() && !form.passwordsMatch,
             )
-
-            Spacer(Modifier.height(20.dp))
-
-            RoleSelectorCard()
 
             Spacer(Modifier.height(28.dp))
 

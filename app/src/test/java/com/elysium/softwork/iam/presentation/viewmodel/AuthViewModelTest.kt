@@ -57,7 +57,7 @@ class AuthViewModelTest {
 
     // region Form state
     @Test
-    fun `initial form snapshot is empty with the EMPLOYEE role`() {
+    fun `initial form snapshot is empty`() {
         val vm = newViewModel()
         val form = vm.form.value
 
@@ -66,7 +66,7 @@ class AuthViewModelTest {
         assertEquals("", form.password)
         assertEquals("", form.confirmPassword)
         assertEquals(false, form.isPasswordVisible)
-        assertEquals(AuthViewModel.FormState.ROLE_EMPLOYEE, form.role)
+        assertNull(form.fieldError)
     }
 
     @Test
@@ -132,8 +132,8 @@ class AuthViewModelTest {
     }
 
     @Test
-    fun `submitLogin trims email then transitions Idle to Success on store success`() = runTest {
-        val expectedUser = User(id = "42", username = "Cesar", token = "JWT_OK")
+    fun `submitLogin trims email then transitions Idle to Success on active membership`() = runTest {
+        val expectedUser = User(id = 42L, name = "Cesar", token = "JWT_OK", membershipStatus = "ACTIVE")
         val store = FakeAuthStore(nextLoginResult = Result.success(expectedUser))
         val vm = newViewModel(store)
         vm.onEmailChange("  worker@elysium.com  ")
@@ -147,6 +147,21 @@ class AuthViewModelTest {
         val finalState = vm.state.value
         assertTrue(finalState is AuthState.Success)
         assertEquals(expectedUser, (finalState as AuthState.Success).user)
+    }
+
+    @Test
+    fun `submitLogin routes to MembershipRequired when the membership is not active`() = runTest {
+        val inactiveUser = User(id = 42L, name = "Cesar", token = "JWT_OK", membershipStatus = "INACTIVE")
+        val store = FakeAuthStore(nextLoginResult = Result.success(inactiveUser))
+        val vm = newViewModel(store)
+        vm.onEmailChange("worker@elysium.com")
+        vm.onPasswordChange("password")
+
+        vm.submitLogin()
+
+        val finalState = vm.state.value
+        assertTrue(finalState is AuthState.MembershipRequired)
+        assertEquals(inactiveUser, (finalState as AuthState.MembershipRequired).user)
     }
 
     @Test
@@ -223,10 +238,36 @@ class AuthViewModelTest {
         assertEquals(1, store.registerInvocations)
         val args = store.lastRegisterArgs
         assertNotNull(args)
-        assertEquals("Cesar", args!!.username)
+        assertEquals("Cesar", args!!.name)
         assertEquals("cesar@elysium.com", args.email)
         assertEquals("Abc12345!", args.password)
-        assertEquals(AuthViewModel.FormState.ROLE_EMPLOYEE, args.role)
+    }
+
+    @Test
+    fun `submitLogin lifts a 400 field error onto the form state`() = runTest {
+        val badRequest = com.elysium.softwork.shared.data.network.BadRequestException(
+            com.elysium.softwork.shared.data.network.BadRequestResponse(
+                message = "Internal validation failed",
+                field_errors = mapOf("argument" to "[CreateUserCommand] dni must be 8 characters long"),
+            ),
+        )
+        val store = FakeAuthStore(nextLoginResult = Result.failure(badRequest))
+        val vm = newViewModel(store)
+        vm.onEmailChange("worker@elysium.com")
+        vm.onPasswordChange("password")
+
+        vm.submitLogin()
+
+        val finalState = vm.state.value
+        assertTrue(finalState is AuthState.Error)
+        assertEquals(
+            "[CreateUserCommand] dni must be 8 characters long",
+            (finalState as AuthState.Error).message,
+        )
+        assertEquals(
+            "[CreateUserCommand] dni must be 8 characters long",
+            vm.form.value.fieldError,
+        )
     }
     // endregion
 
