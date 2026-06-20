@@ -35,6 +35,23 @@ class SharedPrefsManager(context: Context) {
         prefs.edit { remove(key) }
     }
 
+    /**
+     * Atomically purges every IAM session key — the JWT, the account/profile ids, and the
+     * cached credentials. Used on logout and on a cold-launch token-validation failure to drop
+     * a stale/malformed session in a single commit, so the app returns cleanly to the
+     * `LoginScreen` with no half-cleared state. Membership/anonymity feature flags are left
+     * untouched (they are not part of the IAM session).
+     */
+    fun clearSession() {
+        prefs.edit {
+            remove(KEY_AUTH_TOKEN)
+            remove(KEY_USER_ACCOUNT_ID)
+            remove(KEY_EMPLOYEE_PROFILE_ID)
+            remove(KEY_USER_EMAIL)
+            remove(KEY_USER_PASSWORD)
+        }
+    }
+
     /** Returns the boolean stored under [key] or [default] when not set. */
     fun getBoolean(key: String, default: Boolean = false): Boolean = prefs.getBoolean(key, default)
 

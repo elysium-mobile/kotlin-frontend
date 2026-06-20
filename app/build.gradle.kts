@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -21,14 +23,19 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        val properties = Properties()
+        val localPropertiesFile = project.rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            properties.load(localPropertiesFile.inputStream())
+        }
         // BuildConfig fallbacks. The Secrets Gradle Plugin overrides these at build time
         // by reading secrets.properties (gitignore) and falling back to
         // secrets.defaults.properties (committed). Empty defaults keep the build green
         // when a developer hasn't created secrets.properties yet.
-        buildConfigField("String", "BACKEND_BASE_URL", "\"\"")
-        buildConfigField("String", "API_KEY_GEMINI", "\"\"")
-        buildConfigField("String", "API_KEY_GMAIL", "\"\"")
-        buildConfigField("String", "API_KEY_EXTERNAL_SERVICE", "\"\"")
+        buildConfigField("String", "BACKEND_BASE_URL", "\"${System.getenv("BACKEND_BASE_URL") ?: properties.getProperty("backend.base.url", "")}\"")
+        buildConfigField("String", "API_KEY_GEMINI", "\"${System.getenv("API_KEY_GEMINI") ?: properties.getProperty("api.key.gemini", "")}\"")
+        buildConfigField("String", "API_KEY_GMAIL", "\"${System.getenv("API_KEY_GMAIL") ?: properties.getProperty("api.key.gmail", "")}\"")
+        buildConfigField("String", "API_KEY_EXTERNAL_SERVICE", "\"${System.getenv("API_KEY_EXTERNAL_SERVICE") ?: properties.getProperty("api.key.external.service", "")}\"")
     }
 
     buildTypes {

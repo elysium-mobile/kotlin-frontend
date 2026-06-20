@@ -64,14 +64,50 @@ class AuthStoreImpl(
         return login(email, password)
     }
 
-    override fun activeToken(): String? = prefs.getString(SharedPrefsManager.KEY_AUTH_TOKEN)
+    /**
+     * Returns the active JWT, or `null` when there is no valid session.
+     *
+     * **Cold-launch validation + wipe.** A persisted token is only returned when it is a
+     * structurally valid JWT carrying a real subject. A malformed token, or one whose `sub`
+     * claim is the placeholder `"string"` (a stale/invalid signature the backend rejects with
+     * `401`), is treated as no session: the whole session is purged via [clearSession] and
+     * `null` is returned, so `MainActivity` routes the worker back to the `LoginScreen` to
+     * re-authenticate with real credentials instead of replaying the bad token.
+     */
+    override fun activeToken(): String? {
+        val token = prefs.getString(SharedPrefsManager.KEY_AUTH_TOKEN)
+        if (!isValidSessionToken(token)) {
+            clearSession()
+            return null
+        }
+        return token
+    }
 
     override fun clearSession() {
-        prefs.remove(SharedPrefsManager.KEY_AUTH_TOKEN)
-        prefs.remove(SharedPrefsManager.KEY_USER_ACCOUNT_ID)
-        prefs.remove(SharedPrefsManager.KEY_EMPLOYEE_PROFILE_ID)
-        prefs.remove(SharedPrefsManager.KEY_USER_EMAIL)
-        prefs.remove(SharedPrefsManager.KEY_USER_PASSWORD)
+        // Single-commit purge of the whole IAM session. The interceptor re-reads KEY_AUTH_TOKEN
+        // live, so the next request is unauthenticated immediately without touching the network.
+        prefs.clearSession()
+    }
+
+    /**
+     * Structural JWT validation used by the cold-launch session check.
+     *
+     * Decodes the token's payload segment and rejects:
+     *  - blank tokens and anything that is not a three-segment `header.payload.signature` JWT;
+     *  - the Swagger/placeholder subject `"sub":"string"`, which is not a real employee
+     *    identity and is rejected server-side.
+     *
+     * Uses [java.util.Base64] URL decoding (API 26+, within `minSdk = 29`) so it stays free of
+     * Android framework imports and remains unit-testable.
+     */
+    private fun isValidSessionToken(token: String?): Boolean {
+        if (token.isNullOrBlank()) return false
+        val parts = token.split(".")
+        if (parts.size != 3 || parts.any { it.isBlank() }) return false
+        return runCatching {
+            val payload = String(java.util.Base64.getUrlDecoder().decode(parts[1]))
+            !payload.contains(PLACEHOLDER_SUBJECT)
+        }.getOrDefault(false)
     }
 
     /**
@@ -88,6 +124,9 @@ class AuthStoreImpl(
      */
     private suspend fun persistSessionAndSyncProfile(user: User, email: String, password: String) {
         val token = user.token ?: error("Authentication response is missing the token")
+        // Persist the JWT to KEY_AUTH_TOKEN. The OkHttp AuthInterceptor reads this key live on
+        // every subsequent request, so the sequential employee-profile lookup and the later
+        // membership endpoints all carry `Authorization: Bearer <token>` — no cached reference.
         prefs.putString(SharedPrefsManager.KEY_AUTH_TOKEN, token)
         prefs.putString(SharedPrefsManager.KEY_USER_EMAIL, email)
         prefs.putString(SharedPrefsManager.KEY_USER_PASSWORD, password)
@@ -149,5 +188,12 @@ class AuthStoreImpl(
 
     private companion object {
         const val HTTP_BAD_REQUEST: Int = 400
+
+        /**
+         * Marker for the placeholder/invalid JWT subject the backend rejects with `401`
+         * (`"sub":"string"`). A token whose decoded payload contains this is purged on cold
+         * launch so the worker re-authenticates with real credentials.
+         */
+        const val PLACEHOLDER_SUBJECT: String = "\"sub\":\"string\""
     }
 }
