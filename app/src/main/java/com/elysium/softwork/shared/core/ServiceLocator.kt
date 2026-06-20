@@ -3,15 +3,14 @@ package com.elysium.softwork.shared.core
 import android.content.Context
 import com.google.gson.Gson
 import com.elysium.softwork.worker.forum.data.local.ForumDatabase
-import com.elysium.softwork.worker.forum.data.network.PostWebService
-import com.elysium.softwork.worker.forum.data.store.PostStore
-import com.elysium.softwork.worker.forum.data.store.PostStoreImpl
+import com.elysium.softwork.worker.forum.data.network.ForumWebService
+import com.elysium.softwork.worker.forum.data.store.ForumStore
+import com.elysium.softwork.worker.forum.data.store.ForumStoreImpl
 import com.elysium.softwork.iam.data.network.AuthWebService
 import com.elysium.softwork.iam.data.store.AuthStore
 import com.elysium.softwork.iam.data.store.AuthStoreImpl
 import com.elysium.softwork.shared.data.local.SharedPrefsManager
 import com.elysium.softwork.shared.data.network.ApiClient
-import com.elysium.softwork.worker.forum.data.network.ForumReportWebService
 import com.elysium.softwork.worker.forum.data.store.ForumReportStoreImpl
 import com.elysium.softwork.worker.forum.domain.ForumReportStore
 import com.elysium.softwork.feedback.data.store.FeedbackStore
@@ -66,20 +65,21 @@ class ServiceLocator(context: Context) {
 
     private val forumDatabase: ForumDatabase by lazy { ForumDatabase.create(appContext) }
 
-    private val postWebService: PostWebService by lazy {
-        ApiClient.retrofit.create(PostWebService::class.java)
+    private val forumWebService: ForumWebService by lazy {
+        ApiClient.retrofit.create(ForumWebService::class.java)
     }
 
-    val postStore: PostStore by lazy {
-        PostStoreImpl(dao = forumDatabase.postDao(), webService = postWebService)
-    }
-
-    private val forumReportWebService: ForumReportWebService by lazy {
-        ApiClient.retrofit.create(ForumReportWebService::class.java)
+    val forumStore: ForumStore by lazy {
+        ForumStoreImpl(
+            threadDao = forumDatabase.threadDao(),
+            messageDao = forumDatabase.messageDao(),
+            webService = forumWebService,
+            gson = gson,
+        )
     }
 
     val forumReportStore: ForumReportStore by lazy {
-        ForumReportStoreImpl(webService = forumReportWebService)
+        ForumReportStoreImpl(webService = forumWebService, gson = gson)
     }
 
     private val surveyWebService: SurveyWebService by lazy {

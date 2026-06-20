@@ -508,6 +508,12 @@ class. AppCompatActivity remains fully Compose-compatible — `enableEdgeToEdge(
 
 ### ✅ Phase 4 — Forum bounded context (complete, offline-first)
 
+> **⚠️ Superseded by Phase 12 (Forum backend integration).** The flat `Post` model is gone:
+> the context now mirrors the backend `Forum → Category → Thread → Message` hierarchy
+> (+ `Asset`, `Report`), the Room cache holds `threads`/`messages` tables, `ForumStoreImpl`
+> is Retrofit-backed (no `SeedPosts`), and the screens render Threads/Messages. See the
+> Phase 12 section below. The historical Phase 4 notes are retained for context.
+
 - **Domain**: [`Post`](app/src/main/java/com/elysium/softwork/forum/domain/model/Post.kt) data
   class doubles as a Room `@Entity(tableName = "posts")` and a Gson `@SerializedName` bean —
   the same instance flows through `PostWebService` requests/responses and into the local
@@ -1093,6 +1099,68 @@ are deleted. The backend splits a notification across two resources, so the feed
   case (no server-side `by-account` or `by-notification` route exists yet).
 - **No deep-link routing.** `onNotificationClick` is still an unwired no-op.
 - The old `notif_*` string resources are now dead and prunable.
+
+### ✅ Phase 12 — Forum backend integration against the live Spring Boot API
+
+The `worker.forum` context transitioned off the flat `Post` model onto the backend's
+hierarchical `Forum → Category → Thread → Message` structure (+ `Asset`, `Report`). All forum
+mocks (`SeedPosts`, `SampleReports`, the report `delay`) are deleted.
+
+- **Domain (`worker/forum/domain/model/`)** — six annotation-free beans, request/response key
+  asymmetries handled by coexisting nullable fields (no `@SerializedName`):
+  - [`Forum`](app/src/main/java/com/elysium/softwork/worker/forum/domain/model/Forum.kt),
+    [`Category`](app/src/main/java/com/elysium/softwork/worker/forum/domain/model/Category.kt),
+    [`Asset`](app/src/main/java/com/elysium/softwork/worker/forum/domain/model/Asset.kt),
+    [`Report`](app/src/main/java/com/elysium/softwork/worker/forum/domain/model/Report.kt) —
+    pure wire beans.
+  - [`Thread`](app/src/main/java/com/elysium/softwork/worker/forum/domain/model/Thread.kt) and
+    [`Message`](app/src/main/java/com/elysium/softwork/worker/forum/domain/model/Message.kt)
+    double as Room `@Entity`s (`threads` / `messages`) per the documented offline-first cache
+    exception (mirrors the former `Post`). To satisfy Room's non-null-PK rule without a mapper,
+    the primary keys (`thread_id` / `message_id`) are **non-null `Long = 0L`**; Gson overwrites
+    the default with the real id on parse. All other columns stay nullable to match the wire.
+  - The former `Post` and `ForumReport` models are deleted.
+- **Room (`worker/forum/data/local/`)**: `PostDao` → `ThreadDao` + `MessageDao`;
+  `ForumDatabase` bumped to **v2** (`entities = [Thread, Message]`, destructive migration —
+  the cache regenerates from the backend).
+- **Network (`worker/forum/data/network/ForumWebService`)** — replaces `PostWebService` +
+  `ForumReportWebService`. Relative paths only: `GET api/v1/forums`, `GET api/v1/categories`,
+  `GET/POST api/v1/threads`, `GET api/v1/threads/{id}`, `GET/POST api/v1/messages`,
+  `GET api/v1/messages/{id}`, `POST api/v1/assets`, `GET/POST api/v1/reports`.
+- **Stores (`worker/forum/data/store/`)**: `PostStore`/`PostStoreImpl` → `ForumStore`/
+  `ForumStoreImpl` (offline-first: Room `Flow`s + network refresh/upsert; `createThread`,
+  `postMessage`; messages filtered client-side by `thread_id`). `ForumReportStoreImpl` is now
+  Retrofit-backed over `ForumWebService` (`Report`). Both parse a `400` into
+  `BadRequestException` via the shared `unwrap`/`throwTyped` pattern.
+- **Use cases (`worker/forum/application/usecase/`)**: `Observe/Refresh/Get` renamed to
+  Threads; new `ObserveThreadMessages`/`RefreshThreadMessages`/`CreateThread`/`PostMessage`.
+  Writes pull the worker identity from `SharedPrefsManager` where the wire model carries it —
+  `PostMessageUseCase` and `SubmitForumReportUseCase` bind `user_account_id` (camelCase
+  request keys). (The backend `thread` create contract has no worker slot, so `CreateThread`
+  forwards only title/category/area.)
+- **ViewModels (`worker/forum/presentation/viewmodel/`)**: `ForumViewModel` (thread feed +
+  `errorMessage`; the unmappable client-side category filter is removed), `ThreadViewModel`
+  (thread header + live message stream + `sendMessage`), `NewPostViewModel` (create thread,
+  then seed first message). All three catch a `400` → `BadRequestException` →
+  `primaryFieldError()`. Report VMs realigned to `Report`. Every forum screen collects via
+  `collectAsStateWithLifecycle()`.
+- **Wiring**: `ServiceLocator` exposes `forumStore = ForumStoreImpl(threadDao, messageDao,
+  forumWebService, gson)` and `forumReportStore = ForumReportStoreImpl(forumWebService, gson)`.
+- **Tests**: `FakePostStore` → `FakeForumStore`; `ForumViewModelTest` rewritten for the thread
+  feed.
+
+#### Phase 12 caveats
+
+- **Client-side message filter.** `GET /messages` is unfiltered; the per-thread list is
+  filtered by `thread_id` in the store (no server-side `by-thread` route).
+- **Thread creation is partial.** The backend `thread` create requires `areaCompanyId` /
+  `categoryId` the composer does not collect, so creation surfaces the backend's `field_errors`
+  inline until a fuller composer lands. Message posting and reporting (which only need
+  `user_account_id`) work end-to-end.
+- **UI simplified to the wire.** Thread cards show title + reply count + last-activity date;
+  message bubbles show `User #<id>` + content. The former author/anonymity/category-chip and
+  the report status pills are gone (the backend provides no equivalent). `ForumCategory` /
+  `ReportStatus` / the `CategoryChips` composable are now unused (prunable).
 
 ### 🔜 Next — Phase (IMPLEMENTATION WITH REAL BACKEND API)
 

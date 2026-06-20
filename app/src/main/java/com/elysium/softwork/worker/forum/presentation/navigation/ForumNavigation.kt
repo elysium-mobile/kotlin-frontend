@@ -38,8 +38,8 @@ fun NavGraphBuilder.forumGraph(navController: NavHostController, userName: Strin
     ) {
         ForumScreen(
             onNewPost = { navController.navigate(ForumRoutes.NEW_POST) },
-            onOpenThread = { postId -> navController.navigate(ForumRoutes.thread(postId)) },
-            onReportPost = { postId -> navController.navigate(ForumRoutes.report(postId)) },
+            onOpenThread = { threadId -> navController.navigate(ForumRoutes.thread(threadId)) },
+            onReportPost = { threadId -> navController.navigate(ForumRoutes.report(threadId)) },
         )
     }
 
@@ -60,18 +60,18 @@ fun NavGraphBuilder.forumGraph(navController: NavHostController, userName: Strin
     composable(
         route = ForumRoutes.THREAD,
         arguments = listOf(
-            navArgument(ForumRoutes.THREAD_ARG_POST_ID) { type = NavType.StringType },
+            navArgument(ForumRoutes.THREAD_ARG_THREAD_ID) { type = NavType.LongType },
         ),
         enterTransition = PushEnter,
         exitTransition = PushExit,
         popEnterTransition = PushPopEnter,
         popExitTransition = PushPopExit,
     ) { backStackEntry ->
-        val postId: String = backStackEntry.arguments
-            ?.getString(ForumRoutes.THREAD_ARG_POST_ID)
-            .orEmpty()
+        val threadId: Long = backStackEntry.arguments
+            ?.getLong(ForumRoutes.THREAD_ARG_THREAD_ID)
+            ?: 0L
         ThreadScreen(
-            postId = postId,
+            threadId = threadId,
             userName = userName,
             onBack = { navController.popBackStack() },
             onReport = { id -> navController.navigate(ForumRoutes.report(id)) },
@@ -81,18 +81,18 @@ fun NavGraphBuilder.forumGraph(navController: NavHostController, userName: Strin
     composable(
         route = ForumRoutes.REPORT,
         arguments = listOf(
-            navArgument(ForumRoutes.REPORT_ARG_POST_ID) { type = NavType.StringType },
+            navArgument(ForumRoutes.REPORT_ARG_THREAD_ID) { type = NavType.LongType },
         ),
         enterTransition = PushEnter,
         exitTransition = PushExit,
         popEnterTransition = PushPopEnter,
         popExitTransition = PushPopExit,
     ) { backStackEntry ->
-        val postId: String = backStackEntry.arguments
-            ?.getString(ForumRoutes.REPORT_ARG_POST_ID)
-            .orEmpty()
+        val threadId: Long = backStackEntry.arguments
+            ?.getLong(ForumRoutes.REPORT_ARG_THREAD_ID)
+            ?: 0L
         ForumReportScreen(
-            postId = postId,
+            postId = threadId.toString(),
             onBack = { navController.popBackStack() },
         )
     }

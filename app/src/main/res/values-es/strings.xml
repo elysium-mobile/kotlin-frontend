@@ -101,6 +101,7 @@
     <string name="forum_category_conflicts">#Conflictos</string>
     <string name="forum_anonymous_author">Anónimo</string>
     <string name="forum_replies_count">💬 %1$d</string>
+    <string name="forum_message_author">Usuario #%1$d</string>
     <string name="forum_new_post">Nueva publicación</string>
     <string name="forum_new_post_publish">Publicar</string>
     <string name="forum_post_title_hint">Título</string>

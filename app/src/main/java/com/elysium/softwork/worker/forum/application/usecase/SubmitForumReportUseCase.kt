@@ -1,48 +1,54 @@
 package com.elysium.softwork.worker.forum.application.usecase
 
+import com.elysium.softwork.shared.data.local.SharedPrefsManager
 import com.elysium.softwork.worker.forum.domain.ForumReportStore
-import com.elysium.softwork.worker.forum.domain.model.ForumReport
+import com.elysium.softwork.worker.forum.domain.model.Report
+import java.time.LocalDate
 
 /**
- * Submits a forum report against a post.
+ * Submits a content/conduct report to `POST /api/v1/reports`.
  *
- * Owns the assembly of the [ForumReport] entity from its raw parts, so the construction
- * rules (server-assigned fields left `null`, anonymity flag carried verbatim) live in one
- * place instead of inside a UI state holder.
+ * Owns the request-assembly rules: the free-text fields are trimmed, the reporting
+ * `user_account_id` is resolved **dynamically** from [SharedPrefsManager] (cached during the
+ * post-login sequential profile sync) and bound to the body, and the report date defaults to
+ * today (ISO `yyyy-MM-dd`). The camelCase request keys (`userAccountId`, `reportDate`,
+ * `areaCompanyId`) are populated per the backend contract.
  *
  * Stateless; safe to share a single instance process-wide.
  *
  * @param store report data port that performs the network call.
+ * @param prefs session storage holding the cached `user_account_id`.
  */
-class SubmitForumReportUseCase(private val store: ForumReportStore) {
+class SubmitForumReportUseCase(
+    private val store: ForumReportStore,
+    private val prefs: SharedPrefsManager,
+) {
 
     /**
      * Builds and submits the report.
      *
-     * @param postId identifier of the post being reported.
-     * @param typeKey irregularity-type wire key.
-     * @param areaKey area wire key.
+     * @param reason short categorized reason for the report; trimmed before dispatch.
      * @param description detailed explanation; trimmed before dispatch.
-     * @param date approximate incident date as entered by the worker.
-     * @param isAnonymous whether the report hides the reporter's identity.
-     * @return [Result.success] with the server-acknowledged [ForumReport] or
-     *   [Result.failure] on error.
+     * @param reportDate report date; defaults to today when blank.
+     * @param areaCompanyId reported area id, when known.
+     * @return [Result.success] with the server-acknowledged [Report] or [Result.failure] (a
+     *   `400` arrives as a [com.elysium.softwork.shared.data.network.BadRequestException]).
      */
     suspend operator fun invoke(
-        postId: String,
-        typeKey: String,
-        areaKey: String,
+        reason: String,
         description: String,
-        date: String,
-        isAnonymous: Boolean,
-    ): Result<ForumReport> = store.submit(
-        ForumReport(
-            postId = postId,
-            type = typeKey,
-            area = areaKey,
-            description = description.trim(),
-            date = date,
-            isAnonymous = isAnonymous,
-        ),
-    )
+        reportDate: String = LocalDate.now().toString(),
+        areaCompanyId: Long? = null,
+    ): Result<Report> {
+        val accountId: Long = prefs.getLong(SharedPrefsManager.KEY_USER_ACCOUNT_ID)
+        return store.submit(
+            Report(
+                reason = reason.trim(),
+                description = description.trim(),
+                userAccountId = accountId.takeIf { it != SharedPrefsManager.DEFAULT_LONG },
+                reportDate = reportDate.ifBlank { LocalDate.now().toString() },
+                areaCompanyId = areaCompanyId,
+            ),
+        )
+    }
 }

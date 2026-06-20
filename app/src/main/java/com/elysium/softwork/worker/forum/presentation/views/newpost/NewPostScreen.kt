@@ -35,9 +35,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elysium.softwork.R
-import com.elysium.softwork.shared.utils.values.ForumCategory
 import com.elysium.softwork.worker.forum.presentation.viewmodel.NewPostViewModel
-import com.elysium.softwork.worker.forum.presentation.components.Chip
 import com.elysium.softwork.shared.presentation.components.InitialsAvatar
 import com.elysium.softwork.shared.presentation.theme.AccentDark
 import com.elysium.softwork.shared.presentation.theme.AccentMint
@@ -46,11 +44,13 @@ import com.elysium.softwork.shared.presentation.theme.PrimaryNavy
 import com.elysium.softwork.shared.presentation.theme.PrimarySky
 
 /**
- * New-post composer.
+ * New-thread composer.
  *
- * The header doubles as a top bar (close × on the left, "Post" text button on the right).
- * The privacy banner reads `forum_anonymity` via [NewPostViewModel.isAnonymous] — the user
- * does NOT toggle anonymity here; it must be set on the protected-identity screen.
+ * The header doubles as a top bar (close × on the left, "Post" text button on the right). The
+ * privacy banner reads `forum_anonymity` via [NewPostViewModel.isAnonymous]. The worker types
+ * a title (required) and an optional body that seeds the thread's first message. The legacy
+ * category picker is removed — the backend keys threads by a numeric `category_id` the client
+ * cannot derive.
  *
  * @param userName name shown in the privacy banner when posting non-anonymously.
  * @param onClose pop handler for the × button.
@@ -79,7 +79,7 @@ fun NewPostScreen(
             canPublish = form.isReadyToPublish &&
                 publishState !is NewPostViewModel.PublishState.Publishing,
             onClose = onClose,
-            onPublish = { viewModel.publish(authorName = userName) },
+            onPublish = viewModel::publish,
         )
 
         Column(
@@ -89,12 +89,6 @@ fun NewPostScreen(
         ) {
             Spacer(Modifier.height(8.dp))
             IdentityBanner(isAnonymous = viewModel.isAnonymous, userName = userName)
-
-            Spacer(Modifier.height(20.dp))
-            CategorySection(
-                selected = form.category,
-                onSelect = viewModel::selectCategory,
-            )
 
             Spacer(Modifier.height(16.dp))
             TitleField(value = form.title, onValueChange = viewModel::onTitleChange)
@@ -116,7 +110,6 @@ fun NewPostScreen(
                 )
             }
 
-            Toolbar()
             Spacer(Modifier.height(16.dp))
         }
     }
@@ -197,27 +190,6 @@ private fun IdentityBanner(isAnonymous: Boolean, userName: String) {
 }
 
 @Composable
-private fun CategorySection(selected: ForumCategory, onSelect: (ForumCategory) -> Unit) {
-    Column {
-        Text(
-            text = stringResource(R.string.forum_category_label),
-            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = AccentDark,
-        )
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ForumCategory.entries.forEach { category ->
-                Chip(
-                    label = stringResource(category.labelRes),
-                    selected = category == selected,
-                    onClick = { onSelect(category) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun TitleField(value: String, onValueChange: (String) -> Unit) {
     BasicTextField(
         value = value,
@@ -282,42 +254,7 @@ private fun BodyField(
             text = stringResource(R.string.forum_post_counter, value.length, maxLength),
             color = AccentDark,
             style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier
-                .align(Alignment.BottomEnd),
+            modifier = Modifier.align(Alignment.BottomEnd),
         )
     }
-}
-
-@Composable
-private fun Toolbar() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        ToolbarIcon(
-            iconRes = R.drawable.ic_image,
-            contentDescription = stringResource(R.string.cd_image),
-            onClick = { /* Image picker is not yet implemented. */ },
-        )
-        ToolbarIcon(
-            iconRes = R.drawable.ic_paperclip,
-            contentDescription = stringResource(R.string.cd_paperclip),
-            onClick = { /* Attachment picker is not yet implemented. */ },
-        )
-    }
-}
-
-@Composable
-private fun ToolbarIcon(iconRes: Int, contentDescription: String, onClick: () -> Unit) {
-    Icon(
-        painter = painterResource(iconRes),
-        contentDescription = contentDescription,
-        tint = AccentDark,
-        modifier = Modifier
-            .size(24.dp)
-            .clickable(onClick = onClick),
-    )
 }

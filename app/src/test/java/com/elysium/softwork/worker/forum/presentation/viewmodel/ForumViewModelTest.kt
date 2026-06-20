@@ -1,41 +1,35 @@
 package com.elysium.softwork.worker.forum.presentation.viewmodel
 
-import com.elysium.softwork.shared.utils.values.ForumCategory
-import com.elysium.softwork.testsupport.FakePostStore
+import com.elysium.softwork.testsupport.FakeForumStore
 import com.elysium.softwork.testsupport.MainDispatcherRule
-import com.elysium.softwork.worker.forum.application.usecase.ObservePostsUseCase
-import com.elysium.softwork.worker.forum.application.usecase.RefreshPostsUseCase
-import com.elysium.softwork.worker.forum.domain.model.Post
+import com.elysium.softwork.worker.forum.application.usecase.ObserveThreadsUseCase
+import com.elysium.softwork.worker.forum.application.usecase.RefreshThreadsUseCase
+import com.elysium.softwork.worker.forum.domain.model.Thread
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertSame
 import org.junit.Rule
 import org.junit.Test
 
 /**
  * Unit tests for [ForumViewModel].
  *
- * The ViewModel exposes [ForumViewModel.posts] as a `stateIn(WhileSubscribed)` flow, so
- * the upstream [com.elysium.softwork.worker.forum.data.store.PostStore.observe] only
- * collects while there is an active subscriber. Tests therefore launch a no-op
- * collector inside `runTest`'s `backgroundScope` so the flow upstream activates and
- * `posts.value` mirrors the latest emission from the [FakePostStore].
+ * [ForumViewModel.threads] is a `stateIn(WhileSubscribed)` flow, so the upstream
+ * [com.elysium.softwork.worker.forum.data.store.ForumStore.observeThreads] only collects
+ * while there is an active subscriber. Tests launch a no-op collector in `backgroundScope`
+ * so the upstream activates and `threads.value` mirrors the latest [FakeForumStore] emission.
  *
- * The dispatcher rule installs an `UnconfinedTestDispatcher` so the
- * `viewModelScope.launch { store.refresh() }` block in `init` runs eagerly. The
- * `refresh` and `selectCategory` paths are exercised independently to keep failure
- * diagnostics tight.
+ * The dispatcher rule installs an `UnconfinedTestDispatcher` so the `init`-time
+ * `viewModelScope.launch { refreshThreads() }` runs eagerly.
  *
  * Behaviors under test:
  *  - `init` calls `refresh()` exactly once.
- *  - `posts` re-emits when the store backing flow emits a fresh list.
- *  - `selectCategory(...)` filters the feed by the wire key.
- *  - `selectCategory(null)` re-exposes the full feed.
- *  - List items keep stable identity across emissions (same `id` → same post instance).
+ *  - `threads` re-emits when the store backing flow emits a fresh list.
+ *  - List items keep stable identity across emissions (same instance re-emitted).
  *  - `refresh()` forwards to the store an additional time.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -44,133 +38,65 @@ class ForumViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule(UnconfinedTestDispatcher())
 
-    /**
-     * Builds the ViewModel with the real application-layer use cases wrapping the fake
-     * store, mirroring the production factory wiring without touching the locator.
-     */
-    private fun newViewModel(store: FakePostStore): ForumViewModel = ForumViewModel(
-        observePosts = ObservePostsUseCase(store),
-        refreshPosts = RefreshPostsUseCase(store),
+    private fun newViewModel(store: FakeForumStore): ForumViewModel = ForumViewModel(
+        observeThreads = ObserveThreadsUseCase(store),
+        refreshThreads = RefreshThreadsUseCase(store),
     )
 
-    private fun samplePosts(): List<Post> = listOf(
-        Post(
-            id = "p-1",
-            authorName = "Alice",
-            title = "Coffee machine broken",
-            content = "Help",
-            category = ForumCategory.SUGGESTIONS.key,
-            timestamp = 1L,
-        ),
-        Post(
-            id = "p-2",
-            authorName = "Bob",
-            title = "Is anyone coming to the offsite?",
-            content = "RSVP",
-            category = ForumCategory.QUESTIONS.key,
-            timestamp = 2L,
-        ),
-        Post(
-            id = "p-3",
-            authorName = "Cara",
-            title = "Holiday party",
-            content = "Friday",
-            category = ForumCategory.EVENTS.key,
-            timestamp = 3L,
-        ),
+    private fun sampleThreads(): List<Thread> = listOf(
+        Thread(thread_id = 1L, title = "Coffee machine broken", message_count = 3),
+        Thread(thread_id = 2L, title = "Teletrabajo policy", message_count = 8),
     )
 
     @Test
-    fun `init triggers a single refresh on the store`() = runTest(mainDispatcherRule.testDispatcher) {
-        val store = FakePostStore()
+    fun `init triggers a single refresh`() = runTest(mainDispatcherRule.testDispatcher) {
+        val store = FakeForumStore()
         newViewModel(store)
         advanceUntilIdle()
 
-        assertEquals(1, store.refreshInvocations)
+        assertEquals(1, store.refreshThreadsInvocations)
     }
 
     @Test
-    fun `posts emits the store snapshot when subscribed`() =
+    fun `threads mirror the store feed for active subscribers`() =
         runTest(mainDispatcherRule.testDispatcher) {
-            val store = FakePostStore()
+            val store = FakeForumStore(initialThreads = sampleThreads())
             val vm = newViewModel(store)
-            backgroundScope.launch { vm.posts.collect {} }
-
-            store.emit(samplePosts())
+            backgroundScope.launch { vm.threads.collect {} }
             advanceUntilIdle()
 
-            assertEquals(3, vm.posts.value.size)
-            assertEquals(listOf("p-1", "p-2", "p-3"), vm.posts.value.map { it.id })
+            assertEquals(2, vm.threads.value.size)
+            assertEquals("Coffee machine broken", vm.threads.value[0].title)
         }
 
     @Test
-    fun `selectCategory filters the feed by the wire key`() =
+    fun `threads keep stable identity across emissions`() =
         runTest(mainDispatcherRule.testDispatcher) {
-            val store = FakePostStore(initialPosts = samplePosts())
+            val first = Thread(thread_id = 1L, title = "First", message_count = 0)
+            val store = FakeForumStore(initialThreads = listOf(first))
             val vm = newViewModel(store)
-            backgroundScope.launch { vm.posts.collect {} }
+            backgroundScope.launch { vm.threads.collect {} }
             advanceUntilIdle()
 
-            vm.selectCategory(ForumCategory.QUESTIONS)
+            val firstSnapshot = vm.threads.value
+            store.emitThreads(listOf(first, Thread(thread_id = 2L, title = "Second")))
             advanceUntilIdle()
 
-            val filtered = vm.posts.value
-            assertEquals(1, filtered.size)
-            assertEquals("p-2", filtered[0].id)
-            assertEquals(ForumCategory.QUESTIONS, vm.selectedCategory.value)
+            // The previously emitted thread keeps the exact same instance reference so the
+            // UI diffing layer can short-circuit.
+            assertSame(firstSnapshot[0], vm.threads.value[0])
         }
 
     @Test
-    fun `selectCategory null re-exposes the full feed`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            val store = FakePostStore(initialPosts = samplePosts())
-            val vm = newViewModel(store)
-            backgroundScope.launch { vm.posts.collect {} }
+    fun `refresh forwards to the store again`() = runTest(mainDispatcherRule.testDispatcher) {
+        val store = FakeForumStore()
+        val vm = newViewModel(store)
+        advanceUntilIdle()
+        assertEquals(1, store.refreshThreadsInvocations)
 
-            vm.selectCategory(ForumCategory.EVENTS)
-            advanceUntilIdle()
-            assertEquals(1, vm.posts.value.size)
+        vm.refresh()
+        advanceUntilIdle()
 
-            vm.selectCategory(null)
-            advanceUntilIdle()
-            assertEquals(3, vm.posts.value.size)
-        }
-
-    @Test
-    fun `refresh forwards to the store on demand`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            val store = FakePostStore()
-            val vm = newViewModel(store)
-            advanceUntilIdle()
-            // init has already called refresh once.
-            assertEquals(1, store.refreshInvocations)
-
-            vm.refresh()
-            advanceUntilIdle()
-
-            assertEquals(2, store.refreshInvocations)
-        }
-
-    @Test
-    fun `posts preserves stable item identity across emissions`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            val store = FakePostStore()
-            val vm = newViewModel(store)
-            backgroundScope.launch { vm.posts.collect {} }
-
-            val first = Post(id = "p-1", title = "First", category = ForumCategory.SUGGESTIONS.key)
-            val second = Post(id = "p-2", title = "Second", category = ForumCategory.SUGGESTIONS.key)
-            store.emit(listOf(first))
-            advanceUntilIdle()
-            val firstSnapshot = vm.posts.value
-            assertEquals(1, firstSnapshot.size)
-
-            // Add a second post; the original entry must keep its identity (`id`).
-            store.emit(listOf(first, second))
-            advanceUntilIdle()
-            val secondSnapshot = vm.posts.value
-            assertEquals(2, secondSnapshot.size)
-            assertTrue(secondSnapshot.first().id == firstSnapshot.first().id)
-            assertEquals(first, secondSnapshot.first())
-        }
+        assertEquals(2, store.refreshThreadsInvocations)
+    }
 }

@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -32,61 +32,64 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elysium.softwork.R
-import com.elysium.softwork.shared.utils.values.ForumCategory
+import com.elysium.softwork.worker.forum.domain.model.Thread
 import com.elysium.softwork.worker.forum.presentation.viewmodel.ForumViewModel
-import com.elysium.softwork.worker.forum.domain.model.Post
-import com.elysium.softwork.worker.forum.presentation.components.AnonymousBadge
-import com.elysium.softwork.worker.forum.presentation.components.CategoryChips
-import com.elysium.softwork.worker.forum.presentation.components.Chip
-import com.elysium.softwork.shared.presentation.components.InitialsAvatar
 import com.elysium.softwork.shared.presentation.components.SoftWorkCard
 import com.elysium.softwork.shared.presentation.theme.AccentDark
+import com.elysium.softwork.shared.presentation.theme.Danger
 import com.elysium.softwork.shared.presentation.theme.PrimaryNavy
 import com.elysium.softwork.shared.presentation.theme.PrimarySky
-import com.elysium.softwork.shared.presentation.theme.Danger
 
 /**
- * Forum feed (the "Forum" tab destination). Composes the category chip bar above a
- * lazy-loaded list of [PostCard]s, with a circular FAB anchored to the bottom-right that
- * opens the new-post composer.
+ * Forum feed (the "Forum" tab destination). Lists the backend discussion [Thread]s with a
+ * circular FAB that opens the new-thread composer.
+ *
+ * Adapted to the live hierarchical backend: a thread carries only a title, a reply count, and
+ * a last-activity date, so the card shows those — the former author / anonymity / category /
+ * body-snippet are not part of the thread payload.
  *
  * @param onNewPost handler for the "+" FAB tap.
- * @param onOpenThread handler invoked with the post id when a card is tapped.
- * @param onReportPost handler for reporting a post directly from the feed.
+ * @param onOpenThread handler invoked with the thread id when a card is tapped.
+ * @param onReportPost handler for reporting a thread directly from the feed.
  */
 @Composable
 fun ForumScreen(
     onNewPost: () -> Unit,
-    onOpenThread: (String) -> Unit,
-    onReportPost: (String) -> Unit,
+    onOpenThread: (Long) -> Unit,
+    onReportPost: (Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ForumViewModel = viewModel(factory = ForumViewModel.Factory),
 ) {
-    val posts: List<Post> by viewModel.posts.collectAsStateWithLifecycle()
-    val selectedCategory: ForumCategory? by viewModel.selectedCategory.collectAsStateWithLifecycle()
+    val threads: List<Thread> by viewModel.threads.collectAsStateWithLifecycle()
+    val errorMessage: String? by viewModel.errorMessage.collectAsStateWithLifecycle()
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             FeedHeader()
-            CategoryChips(
-                selected = selectedCategory,
-                onSelect = viewModel::selectCategory,
-            )
+
+            errorMessage?.let { message ->
+                Text(
+                    text = message,
+                    color = Danger,
+                    fontSize = 14.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                )
+            }
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                    top = 4.dp,
-                    bottom = 96.dp,
-                ),
+                contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp),
             ) {
-                items(items = posts, key = { it.id }) { post ->
-                    PostCard(
-                        post = post, 
-                        onClick = { onOpenThread(post.id) },
-                        onReport = { onReportPost(post.id) }
+                items(items = threads, key = { it.thread_id }) { thread ->
+                    ThreadCard(
+                        thread = thread,
+                        onClick = { onOpenThread(thread.thread_id) },
+                        onReport = { onReportPost(thread.thread_id) },
                     )
                 }
             }
@@ -112,99 +115,54 @@ private fun FeedHeader() {
 }
 
 @Composable
-private fun PostCard(post: Post, onClick: () -> Unit, onReport: () -> Unit) {
+private fun ThreadCard(thread: Thread, onClick: () -> Unit, onReport: () -> Unit) {
     SoftWorkCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            AuthorRow(post = post, onReport = onReport)
-
-            Spacer(Modifier.height(10.dp))
-            Text(
-                text = post.title,
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = PrimaryNavy,
-                fontSize = 15.sp,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = post.content,
-                style = MaterialTheme.typography.bodyMedium,
-                color = AccentDark,
-                fontSize = 14.sp,
-                maxLines = 3,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = thread.title.orEmpty(),
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = PrimaryNavy,
+                    fontSize = 15.sp,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(
+                    painter = painterResource(R.drawable.ic_flag),
+                    contentDescription = stringResource(R.string.report_title),
+                    tint = Danger.copy(alpha = 0.6f),
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clickable(onClick = onReport),
+                )
+            }
 
             Spacer(Modifier.height(12.dp))
-            FooterRow(post = post)
-        }
-    }
-}
-
-@Composable
-private fun AuthorRow(post: Post, onReport: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (post.isAnonymous) {
-                AnonymousAvatar()
-                Spacer(Modifier.size(8.dp))
-                AnonymousBadge()
-            } else {
-                InitialsAvatar(fullName = post.authorName, size = 32.dp)
-                Spacer(Modifier.size(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                thread.last_message?.let { date ->
+                    Text(
+                        text = date,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AccentDark.copy(alpha = 0.7f),
+                    )
+                }
+                Spacer(Modifier.weight(1f))
                 Text(
-                    text = post.authorName,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = PrimaryNavy,
+                    text = stringResource(R.string.forum_replies_count, thread.message_count ?: 0),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AccentDark,
                 )
             }
         }
-        
-        // Fast Report Icon (Flag)
-        Icon(
-            painter = painterResource(R.drawable.ic_flag),
-            contentDescription = stringResource(R.string.report_title),
-            tint = Danger.copy(alpha = 0.6f),
-            modifier = Modifier
-                .size(20.dp)
-                .clickable(onClick = onReport)
-        )
-    }
-}
-
-@Composable
-private fun AnonymousAvatar(size: androidx.compose.ui.unit.Dp = 32.dp) {
-    Box(
-        modifier = Modifier
-            .size(size)
-            .background(color = AccentDark.copy(alpha = 0.55f), shape = CircleShape),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(text = "?", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-    }
-}
-
-@Composable
-private fun FooterRow(post: Post) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        ForumCategory.fromKey(post.category)?.let { category ->
-            Chip(label = stringResource(category.labelRes), selected = false, onClick = {})
-        }
-        Spacer(Modifier.weight(1f))
-        Text(
-            text = stringResource(R.string.forum_replies_count, post.repliesCount),
-            style = MaterialTheme.typography.bodySmall,
-            color = AccentDark,
-        )
     }
 }
 
@@ -213,10 +171,7 @@ private fun NewPostFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .size(56.dp)
-            .background(
-                color = PrimarySky,
-                shape = RoundedCornerShape(28.dp),
-            )
+            .background(color = PrimarySky, shape = RoundedCornerShape(28.dp))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

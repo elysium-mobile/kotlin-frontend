@@ -14,18 +14,18 @@ object ForumRoutes {
     const val NEW_POST: String = "forum/new-post"
 
     private const val THREAD_BASE: String = "forum/thread"
-    const val THREAD_ARG_POST_ID: String = "postId"
-    const val THREAD: String = "$THREAD_BASE/{$THREAD_ARG_POST_ID}"
+    const val THREAD_ARG_THREAD_ID: String = "threadId"
+    const val THREAD: String = "$THREAD_BASE/{$THREAD_ARG_THREAD_ID}"
 
-    /** Builds a concrete thread route for the given [postId]. */
-    fun thread(postId: String): String = "$THREAD_BASE/$postId"
+    /** Builds a concrete thread route for the given [threadId]. */
+    fun thread(threadId: Long): String = "$THREAD_BASE/$threadId"
 
     private const val REPORT_BASE: String = "forum/report"
-    const val REPORT_ARG_POST_ID: String = "postId"
-    const val REPORT: String = "$REPORT_BASE/{$REPORT_ARG_POST_ID}"
+    const val REPORT_ARG_THREAD_ID: String = "threadId"
+    const val REPORT: String = "$REPORT_BASE/{$REPORT_ARG_THREAD_ID}"
 
-    /** Builds a concrete report route for the given [postId]. */
-    fun report(postId: String): String = "$REPORT_BASE/$postId"
+    /** Builds a concrete report route for the given [threadId]. */
+    fun report(threadId: Long): String = "$REPORT_BASE/$threadId"
 
     /** Read-only list of the user's submitted reports + their current status. */
     const val REPORTS_STATUS: String = "forum/reports-status"

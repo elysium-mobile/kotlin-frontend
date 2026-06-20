@@ -5,83 +5,82 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.elysium.softwork.SoftWorkApplication
-import com.elysium.softwork.shared.utils.values.ForumCategory
-import com.elysium.softwork.worker.forum.application.usecase.ObservePostsUseCase
-import com.elysium.softwork.worker.forum.application.usecase.RefreshPostsUseCase
-import com.elysium.softwork.worker.forum.domain.model.Post
+import com.elysium.softwork.shared.data.network.BadRequestException
+import com.elysium.softwork.worker.forum.application.usecase.ObserveThreadsUseCase
+import com.elysium.softwork.worker.forum.application.usecase.RefreshThreadsUseCase
+import com.elysium.softwork.worker.forum.domain.model.Thread
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
  * UI state holder for the forum feed screen.
  *
- * Combines the cached posts stream from [ObservePostsUseCase] with the in-memory category
- * filter and exposes a single [posts] stream for the UI. Triggers a one-shot
- * [RefreshPostsUseCase] on construction so the cache updates as soon as the screen
- * mounts. No business logic lives here — both data operations are delegated.
+ * Exposes the cached thread feed from [ObserveThreadsUseCase] and triggers a one-shot
+ * [RefreshThreadsUseCase] on construction so the cache updates as soon as the screen mounts.
+ * A backend `400 Bad Request` from a refresh is caught, its [BadRequestException] payload
+ * parsed, and the `field_errors` message routed into [errorMessage]. No business logic lives
+ * here.
  *
- * @param observePosts streams the cached feed.
- * @param refreshPosts pulls the latest posts into the cache.
+ * The legacy in-memory category filter is gone: the backend keys threads by a numeric
+ * `category_id`, which the client-side `ForumCategory` enum does not map to.
+ *
+ * @param observeThreads streams the cached thread feed.
+ * @param refreshThreads pulls the latest threads into the cache.
  */
 class ForumViewModel(
-    observePosts: ObservePostsUseCase,
-    private val refreshPosts: RefreshPostsUseCase,
+    observeThreads: ObserveThreadsUseCase,
+    private val refreshThreads: RefreshThreadsUseCase,
 ) : ViewModel() {
 
-    private val _selectedCategory: MutableStateFlow<ForumCategory?> = MutableStateFlow(null)
-    val selectedCategory: StateFlow<ForumCategory?> = _selectedCategory.asStateFlow()
-
-    /**
-     * Filtered feed. Re-emits whenever the cache writes new rows or the user changes the
-     * category filter.
-     */
-    val posts: StateFlow<List<Post>> = combine(
-        observePosts(),
-        _selectedCategory,
-    ) { all, category ->
-        if (category == null) all else all.filter { it.category == category.key }
-    }.stateIn(
+    /** Cached thread feed. Re-emits whenever the cache writes new rows. */
+    val threads: StateFlow<List<Thread>> = observeThreads().stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000L),
         initialValue = emptyList(),
     )
 
-    init {
-        viewModelScope.launch { refreshPosts() }
-    }
+    private val _errorMessage: MutableStateFlow<String?> = MutableStateFlow(null)
 
-    /** Applies (or clears, with `null`) the category filter. */
-    fun selectCategory(category: ForumCategory?) {
-        _selectedCategory.value = category
+    /** Latest backend validation / load error, or `null` when none. */
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    init {
+        refresh()
     }
 
     /** Pull-to-refresh hook for the feed. */
     fun refresh() {
-        viewModelScope.launch { refreshPosts() }
+        viewModelScope.launch {
+            refreshThreads().onFailure { throwable -> _errorMessage.value = resolveError(throwable) }
+        }
+    }
+
+    /** Clears the surfaced error after the UI has shown it. */
+    fun consumeError() {
+        _errorMessage.value = null
+    }
+
+    private fun resolveError(throwable: Throwable): String = when (throwable) {
+        is BadRequestException -> throwable.response.primaryFieldError() ?: GENERIC_ERROR
+        else -> throwable.message ?: GENERIC_ERROR
     }
 
     companion object {
-        /**
-         * Factory that assembles the forum use cases from the application service locator.
-         *
-         * Use it inside Composables:
-         * ```
-         * val viewModel: ForumViewModel = viewModel(factory = ForumViewModel.Factory)
-         * ```
-         */
+        private const val GENERIC_ERROR: String = "Could not load the forum"
+
+        /** Factory that assembles the forum use cases from the application service locator. */
         val Factory: ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
                 val app = extras[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as SoftWorkApplication
-                val store = app.serviceLocator.postStore
+                val store = app.serviceLocator.forumStore
                 return ForumViewModel(
-                    observePosts = ObservePostsUseCase(store),
-                    refreshPosts = RefreshPostsUseCase(store),
+                    observeThreads = ObserveThreadsUseCase(store),
+                    refreshThreads = RefreshThreadsUseCase(store),
                 ) as T
             }
         }

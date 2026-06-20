@@ -6,32 +6,35 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.elysium.softwork.SoftWorkApplication
 import com.elysium.softwork.shared.application.usecase.GetForumAnonymityUseCase
-import com.elysium.softwork.shared.utils.values.ForumCategory
-import com.elysium.softwork.worker.forum.application.usecase.PublishPostUseCase
+import com.elysium.softwork.shared.data.network.BadRequestException
+import com.elysium.softwork.worker.forum.application.usecase.CreateThreadUseCase
+import com.elysium.softwork.worker.forum.application.usecase.PostMessageUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * UI state holder for the new-post composer.
+ * UI state holder for the new-thread composer.
  *
- * Publication is delegated to [PublishPostUseCase] (which owns trimming and the
- * anonymous-author blanking rule); this class buffers the draft, enforces the body
- * character cap as a typing constraint, and projects the request lifecycle into
- * [publishState].
+ * Creating a discussion is a two-step backend operation: a [CreateThreadUseCase] call
+ * followed — when the worker also typed a body — by a [PostMessageUseCase] call seeding the
+ * thread's first message (which binds the author's `user_account_id` from prefs). This class
+ * buffers the draft, enforces the body cap, and projects the lifecycle into [publishState];
+ * a backend `400` is parsed via [BadRequestException] into [PublishState.Error].
  *
- * On construction the forum-anonymity flag is resolved once via
- * [GetForumAnonymityUseCase] and surfaced through [isAnonymous]. The composer renders
- * the privacy banner from this flag — the user does NOT toggle anonymity here; that is
- * owned by the protected-identity screen. Re-enter the composer to pick up a change.
+ * The forum-anonymity flag is resolved once via [GetForumAnonymityUseCase] for the privacy
+ * banner. The legacy category picker is removed: the backend keys threads by a numeric
+ * `category_id` the client cannot derive from the `ForumCategory` enum.
  *
- * @param publishPost publishes the assembled draft.
+ * @param createThread creates the thread.
+ * @param postMessage seeds the thread's first message.
  * @param getForumAnonymity reads the persisted forum-anonymity flag.
  * @property maxBodyLength character limit enforced by the body input + the live counter.
  */
 class NewPostViewModel(
-    private val publishPost: PublishPostUseCase,
+    private val createThread: CreateThreadUseCase,
+    private val postMessage: PostMessageUseCase,
     getForumAnonymity: GetForumAnonymityUseCase,
 ) : ViewModel() {
 
@@ -41,10 +44,8 @@ class NewPostViewModel(
     data class FormState(
         val title: String = "",
         val content: String = "",
-        val category: ForumCategory = ForumCategory.SUGGESTIONS,
     ) {
-        val isReadyToPublish: Boolean
-            get() = title.isNotBlank() && content.isNotBlank()
+        val isReadyToPublish: Boolean get() = title.isNotBlank()
     }
 
     /** Distinct outcome flags so the UI can react and reset. */
@@ -73,49 +74,53 @@ class NewPostViewModel(
         _form.value = _form.value.copy(content = value)
     }
 
-    fun selectCategory(category: ForumCategory) {
-        _form.value = _form.value.copy(category = category)
-    }
-
-    /** Publishes the current draft under [authorName] (blanked downstream when anonymous). */
-    fun publish(authorName: String) {
+    /** Creates the thread (and seeds its first message when a body was typed). */
+    fun publish() {
         val current = _form.value
         if (!current.isReadyToPublish) return
         if (_publishState.value is PublishState.Publishing) return
 
         _publishState.value = PublishState.Publishing
         viewModelScope.launch {
-            val result = publishPost(
-                title = current.title,
-                content = current.content,
-                categoryKey = current.category.key,
-                authorName = authorName,
-                isAnonymous = isAnonymous,
-            )
+            val result = createThread(title = current.title)
             _publishState.value = result.fold(
-                onSuccess = { PublishState.Published },
-                onFailure = { PublishState.Error(it.message ?: GENERIC_ERROR) },
+                onSuccess = { thread ->
+                    val threadId = thread.thread_id
+                    if (current.content.isNotBlank() && threadId != 0L) {
+                        // Best-effort first message; a failure here does not void the thread.
+                        postMessage(threadId, current.content)
+                    }
+                    PublishState.Published
+                },
+                onFailure = { PublishState.Error(resolveError(it)) },
             )
         }
     }
 
-    /** Reset the publishing flag once the host has consumed it (e.g. after navigating back). */
+    /** Reset the publishing flag once the host has consumed it. */
     fun consumePublishState() {
         _publishState.value = PublishState.Idle
     }
 
+    private fun resolveError(throwable: Throwable): String = when (throwable) {
+        is BadRequestException -> throwable.response.primaryFieldError() ?: GENERIC_ERROR
+        else -> throwable.message ?: GENERIC_ERROR
+    }
+
     companion object {
         private const val MAX_BODY_LENGTH: Int = 500
-        private const val GENERIC_ERROR: String = "Could not publish the post"
+        private const val GENERIC_ERROR: String = "Could not publish the thread"
 
         /** Factory that assembles the use cases from the application service locator. */
         val Factory: ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
                 val app = extras[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as SoftWorkApplication
+                val locator = app.serviceLocator
                 return NewPostViewModel(
-                    publishPost = PublishPostUseCase(app.serviceLocator.postStore),
-                    getForumAnonymity = GetForumAnonymityUseCase(app.serviceLocator.sharedPrefsManager),
+                    createThread = CreateThreadUseCase(locator.forumStore),
+                    postMessage = PostMessageUseCase(locator.forumStore, locator.sharedPrefsManager),
+                    getForumAnonymity = GetForumAnonymityUseCase(locator.sharedPrefsManager),
                 ) as T
             }
         }

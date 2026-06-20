@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,44 +41,55 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elysium.softwork.R
-import com.elysium.softwork.shared.utils.values.ForumCategory
+import com.elysium.softwork.worker.forum.domain.model.Message
+import com.elysium.softwork.worker.forum.domain.model.Thread
 import com.elysium.softwork.worker.forum.presentation.viewmodel.ThreadViewModel
-import com.elysium.softwork.worker.forum.domain.model.Post
-import com.elysium.softwork.worker.forum.presentation.components.AnonymousBadge
-import com.elysium.softwork.worker.forum.presentation.components.Chip
 import com.elysium.softwork.shared.presentation.components.InitialsAvatar
 import com.elysium.softwork.shared.presentation.components.SoftWorkCard
 import com.elysium.softwork.shared.presentation.theme.AccentDark
 import com.elysium.softwork.shared.presentation.theme.AccentWhite
+import com.elysium.softwork.shared.presentation.theme.Danger
 import com.elysium.softwork.shared.presentation.theme.PrimaryNavy
 import com.elysium.softwork.shared.presentation.theme.PrimarySky
-import com.elysium.softwork.shared.presentation.theme.Danger
 
 /**
- * Thread-detail screen. Shows the original post at the top followed by a static sample
- * comment list while the Comment domain is not yet modelled. The bottom sticky input row
- * reads the forum-anonymity preference from [ThreadViewModel.isAnonymous] to decide which
- * avatar + caption to render next to the input field.
+ * Thread-detail screen. Shows the [Thread] header followed by its live [Message] list from
+ * the offline-first cache; the bottom sticky input posts a real reply (the author id is bound
+ * from prefs by the use case). A backend `400` surfaces inline.
  *
- * @param onReport navigates to the report screen for the current post.
+ * @param threadId backend `thread_id` of the open thread.
+ * @param onReport navigates to the report screen for the current thread.
  */
 @Composable
 fun ThreadScreen(
-    postId: String,
+    threadId: Long,
     userName: String,
     onBack: () -> Unit,
-    onReport: (String) -> Unit,
+    onReport: (Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ThreadViewModel = viewModel(factory = ThreadViewModel.Factory),
 ) {
-    val post: Post? by viewModel.post.collectAsStateWithLifecycle()
+    val thread: Thread? by viewModel.thread.collectAsStateWithLifecycle()
+    val messages: List<Message> by viewModel.messages.collectAsStateWithLifecycle()
+    val errorMessage: String? by viewModel.errorMessage.collectAsStateWithLifecycle()
 
-    LaunchedEffect(postId) {
-        viewModel.load(postId)
+    LaunchedEffect(threadId) {
+        viewModel.load(threadId)
     }
 
     Column(modifier = modifier.fillMaxSize()) {
         ThreadHeader(onBack = onBack)
+
+        errorMessage?.let { message ->
+            Text(
+                text = message,
+                color = Danger,
+                fontSize = 14.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+            )
+        }
 
         LazyColumn(
             modifier = Modifier
@@ -85,17 +97,14 @@ fun ThreadScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                top = 8.dp,
-                bottom = 16.dp,
-            ),
+            contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp),
         ) {
-            post?.let { current ->
-                item { 
-                    OriginalPost(
-                        post = current,
-                        onReport = { onReport(current.id) }
-                    ) 
+            thread?.let { current ->
+                item {
+                    ThreadHeaderCard(
+                        thread = current,
+                        onReport = { onReport(current.thread_id) },
+                    )
                 }
                 item {
                     Text(
@@ -105,29 +114,19 @@ fun ThreadScreen(
                         modifier = Modifier.padding(start = 4.dp, top = 8.dp),
                     )
                 }
-                items(items = SAMPLE_COMMENTS, key = { it.id }) { comment ->
-                    CommentBubble(comment = comment)
-                }
+            }
+            items(items = messages, key = { it.message_id }) { message ->
+                MessageBubble(message = message)
             }
         }
 
-        StickyCommentInput(isAnonymous = viewModel.isAnonymous, userName = userName)
+        StickyCommentInput(
+            isAnonymous = viewModel.isAnonymous,
+            userName = userName,
+            onSend = viewModel::sendMessage,
+        )
     }
 }
-
-/** Inline placeholder comment used while the Comment domain is not yet modelled. */
-private data class SampleComment(
-    val id: String,
-    val authorName: String,
-    val isAnonymous: Boolean,
-    val text: String,
-)
-
-private val SAMPLE_COMMENTS: List<SampleComment> = listOf(
-    SampleComment("c1", "María López", false, "Totalmente de acuerdo, deberíamos abrir un canal."),
-    SampleComment("c2", "", true, "Yo también lo viví la semana pasada, gracias por levantarlo."),
-    SampleComment("c3", "Diego Salas", false, "¿Quién toma la iniciativa para hablar con RRHH?"),
-)
 
 @Composable
 private fun ThreadHeader(onBack: () -> Unit) {
@@ -157,60 +156,40 @@ private fun ThreadHeader(onBack: () -> Unit) {
 }
 
 @Composable
-private fun OriginalPost(post: Post, onReport: () -> Unit) {
+private fun ThreadHeaderCard(thread: Thread, onReport: () -> Unit) {
     SoftWorkCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (post.isAnonymous) {
-                        AnonymousAvatar(size = 36.dp)
-                        Spacer(Modifier.size(8.dp))
-                        AnonymousBadge()
-                    } else {
-                        InitialsAvatar(fullName = post.authorName, size = 36.dp)
-                        Spacer(Modifier.size(8.dp))
-                        Text(
-                            text = post.authorName,
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = PrimaryNavy,
-                        )
-                    }
-                }
-                
-                // Fast Report Icon (Flag)
+                Text(
+                    text = thread.title.orEmpty(),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = PrimaryNavy,
+                    modifier = Modifier.weight(1f),
+                )
                 Icon(
                     painter = painterResource(R.drawable.ic_flag),
                     contentDescription = stringResource(R.string.report_title),
                     tint = Danger.copy(alpha = 0.7f),
                     modifier = Modifier
                         .size(24.dp)
-                        .clickable(onClick = onReport)
+                        .clickable(onClick = onReport),
                 )
             }
             Spacer(Modifier.height(12.dp))
-            Text(
-                text = post.title,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = PrimaryNavy,
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = post.content,
-                style = MaterialTheme.typography.bodyMedium,
-                color = AccentDark,
-            )
-            Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                ForumCategory.fromKey(post.category)?.let { category ->
-                    Chip(label = stringResource(category.labelRes), selected = false, onClick = {})
+                thread.last_message?.let { date ->
+                    Text(
+                        text = date,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AccentDark.copy(alpha = 0.7f),
+                    )
                 }
                 Spacer(Modifier.weight(1f))
                 Text(
-                    text = stringResource(R.string.forum_replies_count, post.repliesCount),
+                    text = stringResource(R.string.forum_replies_count, thread.message_count ?: 0),
                     style = MaterialTheme.typography.bodySmall,
                     color = AccentDark,
                 )
@@ -220,31 +199,21 @@ private fun OriginalPost(post: Post, onReport: () -> Unit) {
 }
 
 @Composable
-private fun CommentBubble(comment: SampleComment) {
+private fun MessageBubble(message: Message) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(topStart = 4.dp, topEnd = 12.dp, bottomEnd = 12.dp, bottomStart = 12.dp),
         color = AccentWhite,
     ) {
         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (comment.isAnonymous) {
-                    AnonymousAvatar(size = 24.dp)
-                    Spacer(Modifier.size(6.dp))
-                    AnonymousBadge()
-                } else {
-                    InitialsAvatar(fullName = comment.authorName, size = 24.dp)
-                    Spacer(Modifier.size(6.dp))
-                    Text(
-                        text = comment.authorName,
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = PrimaryNavy,
-                    )
-                }
-            }
+            Text(
+                text = stringResource(R.string.forum_message_author, message.user_account_id ?: 0),
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = PrimaryNavy,
+            )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = comment.text,
+                text = message.content_message.orEmpty(),
                 style = MaterialTheme.typography.bodyMedium,
                 color = AccentDark,
             )
@@ -265,7 +234,7 @@ private fun AnonymousAvatar(size: androidx.compose.ui.unit.Dp = 32.dp) {
 }
 
 @Composable
-private fun StickyCommentInput(isAnonymous: Boolean, userName: String) {
+private fun StickyCommentInput(isAnonymous: Boolean, userName: String, onSend: (String) -> Unit) {
     var draft: String by remember { mutableStateOf("") }
 
     Surface(
@@ -314,7 +283,7 @@ private fun StickyCommentInput(isAnonymous: Boolean, userName: String) {
                     .size(40.dp)
                     .background(color = PrimarySky, shape = CircleShape)
                     .clickable(enabled = draft.isNotBlank()) {
-                        // A future CommentStore is expected to persist the input here.
+                        onSend(draft)
                         draft = ""
                     },
                 contentAlignment = Alignment.Center,
