@@ -24,7 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,6 +33,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elysium.softwork.R
 import com.elysium.softwork.payment.membership.presentation.viewmodel.MembershipViewModel
@@ -41,33 +42,30 @@ import com.elysium.softwork.shared.presentation.components.SoftWorkCard
 import com.elysium.softwork.shared.presentation.theme.AccentDark
 import com.elysium.softwork.shared.presentation.theme.AccentMint
 import com.elysium.softwork.shared.presentation.theme.AccentWhite
+import com.elysium.softwork.shared.presentation.theme.Danger
 import com.elysium.softwork.shared.presentation.theme.PrimaryNavy
 import com.elysium.softwork.shared.presentation.theme.PrimarySky
-import com.elysium.softwork.shared.presentation.theme.PrimaryTeal
 
 /**
  * Membership selection screen — first step of the subscription flow.
  *
- * Renders the catalogue exposed by [MembershipViewModel.availablePlans] as a vertically
- * scrolling list of cards. Plans flagged with `isRecommended = true` use the [PrimaryTeal]
- * architectural accent (label color, price color, feature-check color, solid CTA fill)
- * to steer the worker toward the upsell. Non-recommended plans use the neutral
- * [PrimarySky] accent with an outlined CTA so the recommended tier dominates visually.
+ * Renders the backend plan catalogue ([MembershipViewModel.availablePlans], fetched from
+ * `GET /api/v1/membership-plans`) as a scrolling list of cards. Adapted to the live
+ * `MembershipPlan`: the price is formatted from the integer `price`, the feature list is the
+ * nested `benefit_response_list`, and the stable `plan_id` is forwarded as the selection key.
+ * (The former client-side `isRecommended` accent has no backend equivalent, so every card
+ * uses the neutral sky accent.)
  *
- * The LazyColumn's bottom content padding stacks on the navigation-bar inset, so the
- * final card always clears the system gesture pill even on devices that hide the bar.
- *
- * @param onPlanSelected invoked when the worker taps the CTA on a plan card; carries the
- *   stable [MembershipPlan.key] forward to the methods screen.
- * @param viewModel provider for the catalogue and shared payment state. Resolved through
- *   the manual service locator via the factory exposed on the ViewModel companion.
+ * @param onPlanSelected invoked with the plan's `plan_id` (as a string) when the worker taps
+ *   a plan card's CTA.
  */
 @Composable
 fun MembershipSelectionScreen(
     onPlanSelected: (String) -> Unit,
     viewModel: MembershipViewModel = viewModel(factory = MembershipViewModel.Factory),
 ) {
-    val plans: List<MembershipPlan> = viewModel.availablePlans
+    val plans: List<MembershipPlan> by viewModel.availablePlans.collectAsStateWithLifecycle()
+    val errorMessage: String? by viewModel.errorMessage.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
@@ -76,6 +74,17 @@ fun MembershipSelectionScreen(
     ) {
         SelectionHeader()
 
+        errorMessage?.let { message ->
+            Text(
+                text = message,
+                color = Danger,
+                fontSize = 14.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+            )
+        }
+
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = WindowInsets.navigationBars
@@ -83,17 +92,13 @@ fun MembershipSelectionScreen(
                 .asPaddingValues(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            items(items = plans, key = { plan -> plan.key }) { plan ->
+            items(items = plans, key = { plan -> plan.plan_id ?: 0L }) { plan ->
                 PlanCard(plan = plan, onSelect = onPlanSelected)
             }
         }
     }
 }
 
-/**
- * Static screen header rendering the localized title in the brand navy weight.
- * Standalone so its layout invariants are obvious at the call site.
- */
 @Composable
 private fun SelectionHeader() {
     Box(
@@ -112,41 +117,26 @@ private fun SelectionHeader() {
     }
 }
 
-/**
- * Single plan card rendered inside the [MembershipSelectionScreen] LazyColumn.
- *
- * Visual contract:
- *  - Title and price colour resolve from [MembershipPlan.isRecommended]: teal for the
- *    recommended tier, navy with a sky-coloured price for the rest.
- *  - The feature list is rendered with check icons tinted to match the accent colour.
- *  - The CTA delegates to [SelectPlanButton], which renders a solid fill for the
- *    recommended tier and an outlined treatment for the rest.
- *
- * The per-card `onClick` is hoisted through [remember] keyed on the plan key and the
- * caller's [onSelect] reference so taps allocate no fresh lambda across recompositions.
- *
- * @param plan plan model rendered by this card.
- * @param onSelect invoked with the plan's stable key when the worker taps the CTA.
- */
 @Composable
 private fun PlanCard(plan: MembershipPlan, onSelect: (String) -> Unit) {
-    val accent: Color = if (plan.isRecommended) PrimaryTeal else PrimarySky
-    val titleColor: Color = if (plan.isRecommended) PrimaryTeal else PrimaryNavy
-
-    val onClick: () -> Unit = remember(plan.key, onSelect) { { onSelect(plan.key) } }
+    val accent: Color = PrimarySky
+    val planName: String = plan.plan_name ?: plan.planName.orEmpty()
+    val priceLabel: String = plan.price?.let { stringResource(R.string.payment_price_format, it) }.orEmpty()
+    val features: List<String> = plan.benefit_response_list?.mapNotNull { it.title }.orEmpty()
+    val onClick: () -> Unit = { onSelect((plan.plan_id ?: 0L).toString()) }
 
     SoftWorkCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
-                text = plan.name,
-                color = titleColor,
+                text = planName,
+                color = PrimaryNavy,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(modifier = Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    text = plan.monthlyPrice,
+                    text = priceLabel,
                     color = accent,
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
@@ -162,29 +152,18 @@ private fun PlanCard(plan: MembershipPlan, onSelect: (String) -> Unit) {
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            plan.features.forEach { feature ->
+            features.forEach { feature ->
                 FeatureRow(text = feature, tint = accent)
                 Spacer(modifier = Modifier.height(6.dp))
             }
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            SelectPlanButton(
-                accent = accent,
-                isRecommended = plan.isRecommended,
-                onClick = onClick,
-            )
+            SelectPlanButton(accent = accent, onClick = onClick)
         }
     }
 }
 
-/**
- * A single check-prefixed row within a plan card's feature list.
- *
- * @param text feature label (already localized by the catalogue source).
- * @param tint colour applied to the check icon — matches the card's accent so the row
- *   inherits the per-plan visual identity.
- */
 @Composable
 private fun FeatureRow(text: String, tint: Color) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -204,49 +183,21 @@ private fun FeatureRow(text: String, tint: Color) {
     }
 }
 
-/**
- * Per-plan call to action.
- *
- * The recommended plan ships with a solid [accent] fill (closer to the mockup's primary
- * "Select plan" CTA on Plan Pro) while the basic plan ships with the neutral outlined
- * treatment so the recommended tier visually wins.
- *
- * The fill colour for the recommended branch is intentionally the per-plan accent rather
- * than a Material role: the screen ships exactly two tiers with hand-tuned colours, and
- * routing through the theme would force a second token solely for this surface.
- *
- * @param accent base colour of the variant. Drives both the fill (recommended) and the
- *   label tint (outlined).
- * @param isRecommended `true` to render the solid fill, `false` for the outlined variant.
- * @param onClick invoked when the worker taps the CTA.
- */
 @Composable
-private fun SelectPlanButton(
-    accent: Color,
-    isRecommended: Boolean,
-    onClick: () -> Unit,
-) {
-    val shape = RoundedCornerShape(12.dp)
-    val surfaceColor: Color =
-        if (isRecommended) accent else MaterialTheme.colorScheme.surface
-    val labelColor: Color =
-        if (isRecommended) MaterialTheme.colorScheme.onPrimary else accent
-    val border: BorderStroke? =
-        if (isRecommended) null else BorderStroke(width = 1.dp, color = AccentMint)
-
+private fun SelectPlanButton(accent: Color, onClick: () -> Unit) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .height(48.dp),
-        color = surfaceColor,
-        shape = shape,
-        border = border,
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(width = 1.dp, color = AccentMint),
         onClick = onClick,
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
                 text = stringResource(R.string.payment_select_plan),
-                color = labelColor,
+                color = accent,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
             )

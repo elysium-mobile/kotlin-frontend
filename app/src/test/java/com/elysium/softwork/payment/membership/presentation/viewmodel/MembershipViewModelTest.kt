@@ -7,6 +7,8 @@ import com.elysium.softwork.payment.membership.application.usecase.GetMembership
 import com.elysium.softwork.payment.membership.application.usecase.ObserveCurrentPlanUseCase
 import com.elysium.softwork.payment.membership.application.usecase.ObservePaymentMethodsUseCase
 import com.elysium.softwork.payment.membership.application.usecase.PayMembershipUseCase
+import com.elysium.softwork.payment.membership.domain.model.MembershipPlan
+import com.elysium.softwork.testsupport.FakeAuthStore
 import com.elysium.softwork.testsupport.FakeMembershipStore
 import com.elysium.softwork.testsupport.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -54,10 +56,17 @@ class MembershipViewModelTest {
             observePaymentMethods = ObservePaymentMethodsUseCase(store),
             observeCurrentPlan = ObserveCurrentPlanUseCase(store),
             addPaymentMethod = AddPaymentMethodUseCase(store),
-            payMembership = PayMembershipUseCase(),
+            payMembership = PayMembershipUseCase(
+                store = store,
+                authStore = FakeAuthStore(),
+                accountIdProvider = { 1L },
+            ),
             activateMembership = ActivateMembershipUseCase(store),
             cancelSubscription = CancelSubscriptionUseCase(store),
         )
+
+    private val samplePlan: MembershipPlan =
+        MembershipPlan(plan_id = 2L, plan_name = "Plan Pro", price = 99, membership_id = 2L)
 
     // region Card form buffer
     @Test
@@ -227,9 +236,9 @@ class MembershipViewModelTest {
 
             assertEquals(MembershipViewModel.PaymentState.Idle, vm.paymentState.value)
 
-            vm.payMembership()
+            vm.payMembership(samplePlan)
 
-            // Standard dispatcher leaves the spinner state observable before the delay resolves.
+            // Standard dispatcher leaves the spinner state observable before the call resolves.
             assertEquals(MembershipViewModel.PaymentState.Processing, vm.paymentState.value)
 
             advanceUntilIdle()
@@ -240,8 +249,8 @@ class MembershipViewModelTest {
     @Test
     fun `payMembership ignores a second invocation while Processing is in flight`() = runTest {
         val vm = newViewModel()
-        vm.payMembership()
-        vm.payMembership()
+        vm.payMembership(samplePlan)
+        vm.payMembership(samplePlan)
 
         // Even after letting the dispatcher drain, the state must end at Succeeded — proving
         // the second call did NOT push the machine back to Processing.
@@ -252,7 +261,7 @@ class MembershipViewModelTest {
     @Test
     fun `consumePaymentState resets the machine back to Idle`() = runTest {
         val vm = newViewModel()
-        vm.payMembership()
+        vm.payMembership(samplePlan)
         advanceUntilIdle()
         assertEquals(MembershipViewModel.PaymentState.Succeeded, vm.paymentState.value)
 
@@ -296,9 +305,10 @@ class MembershipViewModelTest {
     }
 
     @Test
-    fun `availablePlans exposes the catalogue returned by the store`() {
+    fun `availablePlans loads the catalogue from the store on construction`() = runTest {
         val vm = newViewModel()
-        assertEquals(FakeMembershipStore.DEFAULT_PLANS, vm.availablePlans)
+        advanceUntilIdle()
+        assertEquals(FakeMembershipStore.DEFAULT_PLANS, vm.availablePlans.value)
     }
     // endregion
 }

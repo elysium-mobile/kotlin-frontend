@@ -1,76 +1,52 @@
 package com.elysium.softwork.payment.membership.data.store
 
 import com.elysium.softwork.payment.membership.domain.model.MembershipPlan
+import com.elysium.softwork.payment.membership.domain.model.Order
+import com.elysium.softwork.payment.membership.domain.model.Payment
 import com.elysium.softwork.payment.membership.domain.model.PaymentMethod
 import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Payment & membership data port.
  *
- * Owns the worker's membership lifecycle (activation, cancellation, current tier) and the
- * catalogue of saved cards. Exposes [hasMembership] as a [StateFlow] so the host Activity
- * can reactively swap between the main app shell and the payment graph the moment the
- * flag flips — that is the mechanism that powers the reactive "cancel subscription"
- * routing.
+ * Two responsibilities:
+ *  - the **local membership gate** ([hasMembership] / [currentPlanKey]) backed by
+ *    `SharedPrefsManager` — `MainActivity` collects [hasMembership] to swap between the main
+ *    shell and the payment graph, so this stays client-side;
+ *  - the **live backend resources** — the plan catalogue, orders, and payments, fetched from
+ *    the Spring Boot API.
  *
- * The contract is intentionally backend-agnostic: callers depend on these methods and the
- * three [StateFlow]s, never on the concrete storage backend.
+ * Network reads/writes return [Result] so callers get a single error channel — a `400 Bad
+ * Request` surfaces as a [com.elysium.softwork.shared.data.network.BadRequestException].
+ * Saved cards remain a client-side affordance (the backend models payment as a transaction,
+ * not a stored instrument).
  */
 interface MembershipStore {
 
-    /**
-     * Reactive flag describing whether the worker currently has an active membership.
-     * Backed by `KEY_HAS_MEMBERSHIP` in `SharedPrefsManager`. Collected by `MainActivity`
-     * to decide whether to mount the main shell or the payment graph.
-     */
+    /** Reactive membership gate flag (`KEY_HAS_MEMBERSHIP`). Collected by `MainActivity`. */
     val hasMembership: StateFlow<Boolean>
 
-    /**
-     * Stable identifier of the active plan, or `null` when no membership is active. Backed
-     * by `KEY_CURRENT_PLAN`. Updated atomically with [hasMembership] by [activateMembership]
-     * and [cancelSubscription].
-     */
+    /** Active plan identifier (`KEY_CURRENT_PLAN`), or `null` when no membership is active. */
     val currentPlanKey: StateFlow<String?>
 
-    /** Reactive list of saved payment methods. */
+    /** Reactive list of saved (client-side) payment methods. */
     val paymentMethods: StateFlow<List<PaymentMethod>>
 
-    /**
-     * Snapshot of the available plan catalogue. Returns the full list because callers
-     * (the selection screen, the methods recap) need it eagerly to render their layouts.
-     */
-    fun availablePlans(): List<MembershipPlan>
+    /** Fetches the plan catalogue (`GET /api/v1/membership-plans`). */
+    suspend fun getPlans(): Result<List<MembershipPlan>>
 
-    /**
-     * Resolves a [MembershipPlan] by its [planKey], or `null` when no such plan exists.
-     * Used by `PaymentMethodsScreen` to recap the price after the user selected a plan
-     * on the previous screen.
-     */
-    fun findPlan(planKey: String): MembershipPlan?
+    /** Creates a purchase order (`POST /api/v1/orders`). */
+    suspend fun createOrder(order: Order): Result<Order>
 
-    /**
-     * Persists [method] into the saved-cards list. Suspending so implementations may
-     * round-trip the value through a remote tokenization step before exposing it on
-     * [paymentMethods].
-     */
+    /** Registers a payment settling an order (`POST /api/v1/payments`). */
+    suspend fun createPayment(payment: Payment): Result<Payment>
+
+    /** Persists [method] into the client-side saved-cards list. */
     suspend fun addPaymentMethod(method: PaymentMethod)
 
-    /**
-     * Flips [hasMembership] to `true`, stores [planKey] as the active tier, and persists
-     * both to `SharedPrefsManager`. Triggered by the user tapping "Main menu" on
-     * `PaymentSuccessScreen`.
-     *
-     * @param planKey stable [MembershipPlan.key] of the plan the worker just paid for.
-     */
+    /** Flips [hasMembership] to `true` and stores [planKey] as the active tier. */
     suspend fun activateMembership(planKey: String)
 
-    /**
-     * Atomically clears the membership flags. Wipes `KEY_HAS_MEMBERSHIP` /
-     * `KEY_CURRENT_PLAN`, emits the new values, and lets the Activity-level collector swap
-     * the user out of the main shell and back into the membership selection screen.
-     *
-     * Card data is intentionally left intact so the worker can re-subscribe without
-     * re-entering their card details.
-     */
+    /** Clears the membership flags (cards preserved). */
     suspend fun cancelSubscription()
 }

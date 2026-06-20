@@ -731,6 +731,13 @@ hook.
 
 ### ✅ Phase 7 (in progress) — Payment / Membership bounded context
 
+> **⚠️ Superseded by Phase 13 (Payment backend integration).** The hardcoded `PlanCatalogue`,
+> the mock payment `delay`, and the fake in-memory plan list are gone: the context now talks
+> to the live payment-service API (`memberships` / `orders` / `payments` / `membership-plans`
+> / `benefits`), `MembershipPlan` carries the real wire keys, and checkout creates an order +
+> payment then re-authenticates. The local membership **gate** (`hasMembership` /
+> `currentPlanKey`) and the client-side saved cards are retained. See Phase 13 below.
+
 - **Domain**: [`MembershipPlan`](app/src/main/java/com/elysium/softwork/payment/membership/domain/model/MembershipPlan.kt)
   (`key` / `name` / `monthlyPrice` / `features` / `isRecommended`) and
   [`PaymentMethod`](app/src/main/java/com/elysium/softwork/payment/membership/domain/model/PaymentMethod.kt)
@@ -1161,6 +1168,63 @@ mocks (`SeedPosts`, `SampleReports`, the report `delay`) are deleted.
   message bubbles show `User #<id>` + content. The former author/anonymity/category-chip and
   the report status pills are gone (the backend provides no equivalent). `ForumCategory` /
   `ReportStatus` / the `CategoryChips` composable are now unused (prunable).
+
+### ✅ Phase 13 — Payment / Membership backend integration against the live Spring Boot API
+
+The `payment.membership` context now talks to the real payment-service API. The mock
+`PlanCatalogue`, the `MOCK_PAYMENT_DELAY_MS`, and the fake in-memory plan list are deleted.
+The local membership **gate** (`hasMembership` / `currentPlanKey`, backed by `SharedPrefsManager`)
+and the **client-side saved cards** (`PaymentMethod`) are retained — the backend models
+neither a gate nor a stored instrument (it models payment as a transaction).
+
+- **Domain (`payment/membership/domain/model/`)** — five annotation-free beans (no
+  `@SerializedName`), request/response key asymmetries via coexisting nullable fields:
+  - [`Membership`](app/src/main/java/com/elysium/softwork/payment/membership/domain/model/Membership.kt),
+    [`Order`](app/src/main/java/com/elysium/softwork/payment/membership/domain/model/Order.kt),
+    [`Payment`](app/src/main/java/com/elysium/softwork/payment/membership/domain/model/Payment.kt),
+    [`Benefit`](app/src/main/java/com/elysium/softwork/payment/membership/domain/model/Benefit.kt) — new.
+  - [`MembershipPlan`](app/src/main/java/com/elysium/softwork/payment/membership/domain/model/MembershipPlan.kt)
+    refactored to `plan_id`, `planName`/`plan_name`, integer `price` (replaces `monthlyPrice`),
+    `membershipId`/`membership_id`, `benefit_response_list`. (`key`/`name`/`features`/
+    `isRecommended` removed.) `PaymentMethod` kept as the client-side card.
+- **Network (`payment/membership/data/network/MembershipWebService`)** — relative paths:
+  `POST/GET api/v1/memberships`, `GET api/v1/memberships/{id}`, `POST/GET api/v1/orders`,
+  `GET api/v1/orders/userAccount/{userAccountId}`, `POST api/v1/payments`,
+  `GET api/v1/payments/{id}`, `GET api/v1/membership-plans`,
+  `POST api/v1/membership-plans/{id}/benefits`.
+- **Store (`MembershipStoreImpl`)** — `PlanCatalogue`/`delay`/`availablePlans()`/`findPlan()`
+  removed; now `MembershipStoreImpl(prefs, webService, gson)` with suspend `getPlans()` /
+  `createOrder()` / `createPayment()` (`400` → `BadRequestException`). Gate flags + card
+  mutators unchanged.
+- **Use cases (`PayMembershipUseCase`)** — rewritten as the real checkout: creates the order
+  (binding `user_account_id` resourced from `SharedPrefsManager` via a provider, the plan
+  `price`, and `membership_id`), registers the payment (generated `transactionId`, today's
+  date), then **re-authenticates** via `AuthStore.reauthenticate()` (the Phase 9 hook —
+  no refresh endpoint exists). `GetMembershipPlansUseCase` is now suspend/`Result`.
+- **Presentation (`MembershipViewModel`)** — `availablePlans` is now an async
+  `StateFlow<List<MembershipPlan>>` loaded on init; `payMembership(plan)` drives the checkout
+  and a `400`/business-rule failure lands on `errorMessage`. `MembershipSelectionScreen` and
+  `PaymentMethodsScreen` collect the catalogue via `collectAsStateWithLifecycle()`, format the
+  integer price, render benefits as features, key by `plan_id`, and surface `errorMessage`.
+  The membership gate flips on the success-screen CTA (so the confirmation renders before the
+  root hot-swaps into the main shell).
+- **Wiring**: `ServiceLocator` exposes `membershipWebService` and builds
+  `MembershipStoreImpl(sharedPrefsManager, membershipWebService, gson)`. The `PayMembershipUseCase`
+  factory pulls `authStore` + the prefs-backed account-id provider.
+- **Tests**: `FakeMembershipStore` realigned to the new contract (`getPlans`/`createOrder`/
+  `createPayment`, new `MembershipPlan` shape); `MembershipViewModelTest` updated for the
+  plan-driven `payMembership` and the async catalogue.
+
+#### Phase 13 caveats
+
+- **Re-auth wired here.** The Phase 9 follow-up ("wire `reauthenticate()` into the payment
+  flow") is now done inside `PayMembershipUseCase`. Re-auth is best-effort: a refresh hiccup
+  does not fail an already-successful payment.
+- **Saved cards stay client-side.** The backend has no payment-method resource, so the card
+  composer / saved list remain in memory (lost on cold start); the actual charge is the
+  `Payment` transaction. A generated `transactionId` stands in for a real processor token.
+- **One new string** `payment_price_format` (`S/. %1$d`) formats the integer price in both
+  locales.
 
 ### 🔜 Next — Phase (IMPLEMENTATION WITH REAL BACKEND API)
 
