@@ -27,6 +27,10 @@ jobs:
       - name: Build APK with Java 21 Force
         env:
           JAVA_HOME: ${{ steps.setup-java.outputs.path }}
+          BACKEND_BASE_URL: ${{ secrets.BACKEND_BASE_URL }}
+          API_KEY_GEMINI: ${{ secrets.API_KEY_GEMINI }}
+          API_KEY_GMAIL: ${{ secrets.API_KEY_GMAIL }}
+          API_KEY_EXTERNAL_SERVICE: ${{ secrets.API_KEY_EXTERNAL_SERVICE }}
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug -x test
