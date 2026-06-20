@@ -1,24 +1,27 @@
 package com.elysium.softwork.shared.core
 
 import android.content.Context
+import com.google.gson.Gson
 import com.elysium.softwork.worker.forum.data.local.ForumDatabase
-import com.elysium.softwork.worker.forum.data.network.PostWebService
-import com.elysium.softwork.worker.forum.data.store.PostStore
-import com.elysium.softwork.worker.forum.data.store.PostStoreImpl
+import com.elysium.softwork.worker.forum.data.network.ForumWebService
+import com.elysium.softwork.worker.forum.data.store.ForumStore
+import com.elysium.softwork.worker.forum.data.store.ForumStoreImpl
 import com.elysium.softwork.iam.data.network.AuthWebService
 import com.elysium.softwork.iam.data.store.AuthStore
 import com.elysium.softwork.iam.data.store.AuthStoreImpl
 import com.elysium.softwork.shared.data.local.SharedPrefsManager
 import com.elysium.softwork.shared.data.network.ApiClient
-import com.elysium.softwork.worker.forum.data.network.ForumReportWebService
 import com.elysium.softwork.worker.forum.data.store.ForumReportStoreImpl
 import com.elysium.softwork.worker.forum.domain.ForumReportStore
 import com.elysium.softwork.feedback.data.store.FeedbackStore
 import com.elysium.softwork.feedback.data.store.FeedbackStoreImpl
+import com.elysium.softwork.feedback.data.network.SurveyWebService
 import com.elysium.softwork.feedback.data.store.SurveyStore
 import com.elysium.softwork.feedback.data.store.SurveyStoreImpl
+import com.elysium.softwork.notifications.data.network.NotificationWebService
 import com.elysium.softwork.notifications.data.store.NotificationStore
 import com.elysium.softwork.notifications.data.store.NotificationStoreImpl
+import com.elysium.softwork.payment.membership.data.network.MembershipWebService
 import com.elysium.softwork.payment.membership.data.store.MembershipStore
 import com.elysium.softwork.payment.membership.data.store.MembershipStoreImpl
 
@@ -42,35 +45,65 @@ class ServiceLocator(context: Context) {
 
     val sharedPrefsManager: SharedPrefsManager by lazy { SharedPrefsManager(appContext) }
 
+    /**
+     * Installs the session-token supplier on [ApiClient] so [AuthInterceptor] can attach the
+     * `Authorization: Bearer <token>` header to every authenticated request. Performed in the
+     * constructor — before any store can trigger a network call — and reads the token live on
+     * each request, so a fresh login or a logout is reflected immediately.
+     */
+    init {
+        ApiClient.installTokenProvider { sharedPrefsManager.getString(SharedPrefsManager.KEY_AUTH_TOKEN) }
+    }
+
+    /** Process-wide Gson used to deserialize structured error payloads (e.g. [BadRequestResponse]). */
+    private val gson: Gson by lazy { Gson() }
+
     private val authWebService: AuthWebService by lazy {
         ApiClient.retrofit.create(AuthWebService::class.java)
     }
 
-    val authStore: AuthStore by lazy { AuthStoreImpl(authWebService, sharedPrefsManager) }
+    val authStore: AuthStore by lazy { AuthStoreImpl(authWebService, sharedPrefsManager, gson) }
 
     private val forumDatabase: ForumDatabase by lazy { ForumDatabase.create(appContext) }
 
-    private val postWebService: PostWebService by lazy {
-        ApiClient.retrofit.create(PostWebService::class.java)
+    private val forumWebService: ForumWebService by lazy {
+        ApiClient.retrofit.create(ForumWebService::class.java)
     }
 
-    val postStore: PostStore by lazy {
-        PostStoreImpl(dao = forumDatabase.postDao(), webService = postWebService)
-    }
-
-    private val forumReportWebService: ForumReportWebService by lazy {
-        ApiClient.retrofit.create(ForumReportWebService::class.java)
+    val forumStore: ForumStore by lazy {
+        ForumStoreImpl(
+            threadDao = forumDatabase.threadDao(),
+            messageDao = forumDatabase.messageDao(),
+            webService = forumWebService,
+            gson = gson,
+        )
     }
 
     val forumReportStore: ForumReportStore by lazy {
-        ForumReportStoreImpl(webService = forumReportWebService)
+        ForumReportStoreImpl(webService = forumWebService, gson = gson)
     }
 
-    val surveyStore: SurveyStore by lazy { SurveyStoreImpl(appContext) }
+    private val surveyWebService: SurveyWebService by lazy {
+        ApiClient.retrofit.create(SurveyWebService::class.java)
+    }
+
+    val surveyStore: SurveyStore by lazy { SurveyStoreImpl(surveyWebService, gson) }
 
     val feedbackStore: FeedbackStore by lazy { FeedbackStoreImpl() }
 
-    val notificationStore: NotificationStore by lazy { NotificationStoreImpl(appContext) }
+    private val notificationWebService: NotificationWebService by lazy {
+        ApiClient.retrofit.create(NotificationWebService::class.java)
+    }
 
-    val membershipStore: MembershipStore by lazy { MembershipStoreImpl(sharedPrefsManager) }
+    val notificationStore: NotificationStore by lazy {
+        NotificationStoreImpl(notificationWebService, gson)
+    }
+
+    private val membershipWebService: MembershipWebService by lazy {
+        ApiClient.retrofit.create(MembershipWebService::class.java)
+    }
+
+    val membershipStore: MembershipStore by lazy {
+        MembershipStoreImpl(sharedPrefsManager, membershipWebService, gson)
+    }
 }

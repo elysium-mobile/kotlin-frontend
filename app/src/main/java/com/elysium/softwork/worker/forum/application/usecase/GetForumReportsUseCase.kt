@@ -1,18 +1,17 @@
 package com.elysium.softwork.worker.forum.application.usecase
 
 import com.elysium.softwork.worker.forum.domain.ForumReportStore
-import com.elysium.softwork.worker.forum.domain.model.ForumReport
+import com.elysium.softwork.worker.forum.domain.model.Report
 
 /**
- * Fetches the authenticated worker's submitted reports with their current status.
+ * Fetches the submitted reports for the report-status screen.
  *
  * Stateless; safe to share a single instance process-wide.
  *
- * @param store report data port that performs the network call (with a bundled-sample
- *   fallback while the backend is unreachable).
+ * @param store report data port that performs the network call.
  */
 class GetForumReportsUseCase(private val store: ForumReportStore) {
 
     /** @return [Result.success] with the report list or [Result.failure] on error. */
-    suspend operator fun invoke(): Result<List<ForumReport>> = store.list()
+    suspend operator fun invoke(): Result<List<Report>> = store.list()
 }

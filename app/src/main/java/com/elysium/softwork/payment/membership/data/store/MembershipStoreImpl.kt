@@ -1,23 +1,38 @@
 package com.elysium.softwork.payment.membership.data.store
 
+import com.elysium.softwork.payment.membership.data.network.MembershipWebService
 import com.elysium.softwork.payment.membership.domain.model.MembershipPlan
+import com.elysium.softwork.payment.membership.domain.model.Order
+import com.elysium.softwork.payment.membership.domain.model.Payment
 import com.elysium.softwork.payment.membership.domain.model.PaymentMethod
 import com.elysium.softwork.shared.data.local.SharedPrefsManager
+import com.elysium.softwork.shared.data.network.BadRequestException
+import com.elysium.softwork.shared.data.network.BadRequestResponse
+import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import retrofit2.Response
 
 /**
- * In-memory [MembershipStore] backed by [SharedPrefsManager] for the membership flags.
+ * Concrete [MembershipStore] — backend-backed catalogue/orders/payments plus the local
+ * membership gate.
  *
- * The saved-cards list lives in a [MutableStateFlow] (lost across process death). The plan
- * catalogue is a hardcoded constant — swap [availablePlans] to a Retrofit-backed call
- * without changing any caller. Plan labels are presented in English regardless of the
- * active app locale.
+ * No mock harness: the hardcoded `PlanCatalogue`, the mock `delay`, and the fake in-memory
+ * plan list are deleted. [getPlans] / [createOrder] / [createPayment] drive
+ * [MembershipWebService] and parse a `400` into a [BadRequestException]. The membership gate
+ * flags ([hasMembership] / [currentPlanKey]) and the client-side saved cards remain in
+ * `SharedPrefsManager` / memory because the backend models neither a "gate" nor a stored card.
  *
- * @param prefs persistent key-value store backing the membership flags.
+ * @param prefs persistent key-value store backing the membership gate flags.
+ * @param webService Retrofit contract for the payment-service endpoints.
+ * @param gson deserializer for the structured `400` validation payload.
  */
-class MembershipStoreImpl(private val prefs: SharedPrefsManager) : MembershipStore {
+class MembershipStoreImpl(
+    private val prefs: SharedPrefsManager,
+    private val webService: MembershipWebService,
+    private val gson: Gson,
+) : MembershipStore {
 
     private val _hasMembership: MutableStateFlow<Boolean> =
         MutableStateFlow(prefs.getBoolean(SharedPrefsManager.KEY_HAS_MEMBERSHIP, default = false))
@@ -31,10 +46,14 @@ class MembershipStoreImpl(private val prefs: SharedPrefsManager) : MembershipSto
         MutableStateFlow(emptyList())
     override val paymentMethods: StateFlow<List<PaymentMethod>> = _paymentMethods.asStateFlow()
 
-    override fun availablePlans(): List<MembershipPlan> = PlanCatalogue
+    override suspend fun getPlans(): Result<List<MembershipPlan>> =
+        runCatching { unwrapList(webService.getMembershipPlans()) }
 
-    override fun findPlan(planKey: String): MembershipPlan? =
-        PlanCatalogue.firstOrNull { it.key == planKey }
+    override suspend fun createOrder(order: Order): Result<Order> =
+        runCatching { unwrap(webService.createOrder(order)) }
+
+    override suspend fun createPayment(payment: Payment): Result<Payment> =
+        runCatching { unwrap(webService.createPayment(payment)) }
 
     override suspend fun addPaymentMethod(method: PaymentMethod) {
         _paymentMethods.value += method
@@ -54,36 +73,40 @@ class MembershipStoreImpl(private val prefs: SharedPrefsManager) : MembershipSto
         _hasMembership.value = false
     }
 
+    /** Unwraps a single-object [response]; a `400` becomes a [BadRequestException]. */
+    private fun <T> unwrap(response: Response<T>): T {
+        if (response.isSuccessful) {
+            return response.body() ?: error("Empty response body")
+        }
+        throwTyped(response)
+    }
+
+    /** Unwraps a list [response], tolerating an empty body as an empty list. */
+    private fun <T> unwrapList(response: Response<List<T>>): List<T> {
+        if (response.isSuccessful) {
+            return response.body().orEmpty()
+        }
+        throwTyped(response)
+    }
+
     /**
-     * Hardcoded plan catalogue. Feature labels are intentionally English-only for the
-     * payment & membership surface. Replace [availablePlans] with a Retrofit-backed call
-     * once a `/plans` endpoint is available.
+     * Converts a non-2xx [response] into a typed failure: a `400` into a [BadRequestException]
+     * carrying the parsed [BadRequestResponse], anything else into an [IllegalStateException]
+     * (covers the backend's business-rule `500`s — inactive membership, out-of-range date —
+     * whose message the UI surfaces verbatim).
      */
-    companion object {
-        private val PlanCatalogue: List<MembershipPlan> = listOf(
-            MembershipPlan(
-                key = "basic",
-                name = "Basic",
-                monthlyPrice = "S/. 59",
-                features = listOf(
-                    "Basic check-in",
-                    "Surveys",
-                ),
-                isRecommended = false,
-            ),
-            MembershipPlan(
-                key = "pro",
-                name = "Plan Pro",
-                monthlyPrice = "S/. 99",
-                features = listOf(
-                    "Basic check-in",
-                    "Surveys",
-                    "Workplace forum",
-                    "HR messaging",
-                    "Encrypted reports",
-                ),
-                isRecommended = true,
-            ),
-        )
+    private fun throwTyped(response: Response<*>): Nothing {
+        val rawError: String? = runCatching { response.errorBody()?.string() }.getOrNull()
+        if (response.code() == HTTP_BAD_REQUEST) {
+            val parsed: BadRequestResponse = rawError
+                ?.let { runCatching { gson.fromJson(it, BadRequestResponse::class.java) }.getOrNull() }
+                ?: BadRequestResponse(message = rawError)
+            throw BadRequestException(parsed)
+        }
+        error("HTTP ${response.code()} ${response.message().ifBlank { rawError ?: "request failed" }}")
+    }
+
+    private companion object {
+        const val HTTP_BAD_REQUEST: Int = 400
     }
 }

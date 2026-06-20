@@ -103,15 +103,18 @@ fun PaymentMethodsScreen(
     val paymentState: MembershipViewModel.PaymentState by viewModel.paymentState
         .collectAsStateWithLifecycle()
     val activePlanKey: String? by viewModel.currentPlanKey.collectAsStateWithLifecycle()
+    val plans: List<MembershipPlan> by viewModel.availablePlans.collectAsStateWithLifecycle()
+    val errorMessage: String? by viewModel.errorMessage.collectAsStateWithLifecycle()
 
     val resolvedPlanKey: String =
         if (planKey == PaymentRoutes.CURRENT_PLAN_SENTINEL) activePlanKey.orEmpty() else planKey
-    val plan: MembershipPlan? =
-        remember(resolvedPlanKey) { viewModel.availablePlans.firstOrNull { it.key == resolvedPlanKey } }
+    val plan: MembershipPlan? = remember(resolvedPlanKey, plans) {
+        plans.firstOrNull { (it.plan_id ?: 0L).toString() == resolvedPlanKey }
+    }
 
     LaunchedEffect(paymentState, plan) {
         if (paymentState is MembershipViewModel.PaymentState.Succeeded && plan != null) {
-            onPaymentSucceeded(plan.key)
+            onPaymentSucceeded((plan.plan_id ?: 0L).toString())
             viewModel.consumePaymentState()
         }
     }
@@ -152,15 +155,23 @@ fun PaymentMethodsScreen(
             }
         }
 
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(horizontal = 20.dp, vertical = 16.dp),
         ) {
+            errorMessage?.let { message ->
+                Text(
+                    text = message,
+                    color = Danger,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            }
             SoftWorkButton(
                 text = stringResource(R.string.payment_pay_membership),
-                onClick = viewModel::payMembership,
+                onClick = { plan?.let { viewModel.payMembership(it) } },
                 enabled = cards.isNotEmpty() &&
                     plan != null &&
                     paymentState !is MembershipViewModel.PaymentState.Processing,
@@ -216,8 +227,8 @@ private fun MethodsHeader(onBack: () -> Unit) {
  */
 @Composable
 private fun NextChargeCard(plan: MembershipPlan?) {
-    val price: String = plan?.monthlyPrice.orEmpty()
-    val name: String = plan?.name.orEmpty()
+    val price: String = plan?.price?.let { stringResource(R.string.payment_price_format, it) }.orEmpty()
+    val name: String = plan?.plan_name ?: plan?.planName.orEmpty()
     val captionColor: Color = Color.White.copy(alpha = 0.85f)
     val subtitleColor: Color = Color.White.copy(alpha = 0.9f)
 

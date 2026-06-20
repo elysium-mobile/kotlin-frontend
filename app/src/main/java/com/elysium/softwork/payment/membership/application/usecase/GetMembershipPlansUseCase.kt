@@ -4,7 +4,7 @@ import com.elysium.softwork.payment.membership.data.store.MembershipStore
 import com.elysium.softwork.payment.membership.domain.model.MembershipPlan
 
 /**
- * Reads the membership plan catalogue.
+ * Fetches the membership plan catalogue from the backend.
  *
  * Stateless; safe to share a single instance process-wide.
  *
@@ -12,14 +12,9 @@ import com.elysium.softwork.payment.membership.domain.model.MembershipPlan
  */
 class GetMembershipPlansUseCase(private val store: MembershipStore) {
 
-    /** @return the full plan catalogue, eager because the selection screen renders it all. */
-    operator fun invoke(): List<MembershipPlan> = store.availablePlans()
-
     /**
-     * Resolves a single plan by its stable key.
-     *
-     * @param planKey stable plan identifier.
-     * @return the matching [MembershipPlan], or `null` when no plan carries the key.
+     * @return [Result.success] with the plan catalogue or [Result.failure] (a `400` arrives as
+     *   a [com.elysium.softwork.shared.data.network.BadRequestException]).
      */
-    fun find(planKey: String): MembershipPlan? = store.findPlan(planKey)
+    suspend operator fun invoke(): Result<List<MembershipPlan>> = store.getPlans()
 }

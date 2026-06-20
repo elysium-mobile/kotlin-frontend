@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.elysium.softwork.SoftWorkApplication
+import com.elysium.softwork.shared.data.network.BadRequestException
 import com.elysium.softwork.shared.utils.values.ReportArea
 import com.elysium.softwork.shared.utils.values.ReportType
 import com.elysium.softwork.worker.forum.application.usecase.SubmitForumReportUseCase
@@ -16,16 +17,19 @@ import kotlinx.coroutines.launch
 /**
  * UI state holder for the forum-report screen.
  *
- * Buffers the report form and projects the submission lifecycle into [state]. Report
- * assembly and dispatch are delegated to [SubmitForumReportUseCase]; the ViewModel only
- * decides *when* to submit (validity + re-entrance gates).
+ * Buffers the report form and projects the submission lifecycle into [state]. Report assembly
+ * and the `user_account_id` binding are delegated to [SubmitForumReportUseCase]; the selected
+ * irregularity [ReportType] maps to the backend `reason`, the free text to `description`, and
+ * the date to `reportDate`. A backend `400` is parsed via [BadRequestException] into the
+ * form's [ReportFormState.error].
  *
  * @param submitForumReport assembles and submits the report.
- * @param postId identifier of the post being reported, fixed for the screen's lifetime.
+ * @param contextId identifier of the thread the report was opened from (navigation context;
+ *   the backend `Report` does not store a post reference).
  */
 class ForumReportViewModel(
     private val submitForumReport: SubmitForumReportUseCase,
-    private val postId: String,
+    @Suppress("unused") private val contextId: String,
 ) : ViewModel() {
 
     /** Current state of the report form. */
@@ -46,14 +50,10 @@ class ForumReportViewModel(
     private val _state = MutableStateFlow(ReportFormState())
     val state: StateFlow<ReportFormState> = _state.asStateFlow()
 
-    /**
-     * Areas selectable in the dropdown. Each entry pairs a locale-independent wire key
-     * with a localized label resource — the screen renders the label via `stringResource`
-     * and persists the key in [ReportFormState.area].
-     */
+    /** Areas selectable in the dropdown (key + localized label). */
     val areas: List<ReportArea> = ReportArea.entries
 
-    /** Irregularity types selectable in the chip grid. Same key/label contract as [areas]. */
+    /** Irregularity types selectable in the chip grid (key + localized label). */
     val reportTypes: List<ReportType> = ReportType.entries
 
     fun onTypeSelected(type: String) {
@@ -81,16 +81,13 @@ class ForumReportViewModel(
 
         viewModelScope.launch {
             val result = submitForumReport(
-                postId = postId,
-                typeKey = current.type,
-                areaKey = current.area,
+                reason = current.type,
                 description = current.description,
-                date = current.date,
-                isAnonymous = current.isAnonymous,
+                reportDate = current.date,
             )
             _state.value = result.fold(
                 onSuccess = { _state.value.copy(isSubmitting = false, isSuccess = true) },
-                onFailure = { _state.value.copy(isSubmitting = false, error = it.message) },
+                onFailure = { _state.value.copy(isSubmitting = false, error = resolveError(it)) },
             )
         }
     }
@@ -100,19 +97,30 @@ class ForumReportViewModel(
         _state.value = _state.value.copy(isSuccess = false)
     }
 
+    private fun resolveError(throwable: Throwable): String = when (throwable) {
+        is BadRequestException -> throwable.response.primaryFieldError() ?: GENERIC_ERROR
+        else -> throwable.message ?: GENERIC_ERROR
+    }
+
     companion object {
+        private const val GENERIC_ERROR: String = "Could not submit the report"
+
         /**
          * Factory for [ForumReportViewModel].
          *
-         * @param postId the ID of the post being reported.
+         * @param contextId the id of the thread the report was opened from.
          */
-        fun provideFactory(postId: String): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+        fun provideFactory(contextId: String): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
                 val app = extras[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as SoftWorkApplication
+                val locator = app.serviceLocator
                 return ForumReportViewModel(
-                    submitForumReport = SubmitForumReportUseCase(app.serviceLocator.forumReportStore),
-                    postId = postId,
+                    submitForumReport = SubmitForumReportUseCase(
+                        store = locator.forumReportStore,
+                        prefs = locator.sharedPrefsManager,
+                    ),
+                    contextId = contextId,
                 ) as T
             }
         }

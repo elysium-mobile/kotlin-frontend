@@ -4,21 +4,25 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.elysium.softwork.worker.forum.domain.model.Post
+import com.elysium.softwork.worker.forum.domain.model.Message
+import com.elysium.softwork.worker.forum.domain.model.Thread
 
 /**
- * Room database for the Forum bounded context. Owns the cached [Post] table that the
- * [com.elysium.softwork.worker.forum.data.store.PostStoreImpl] writes after each network refresh
- * and that the UI observes through [PostDao.getAllPosts].
+ * Room database for the Forum bounded context. Owns the offline-first [Thread] and [Message]
+ * caches that `ForumStoreImpl` writes after each network refresh and that the UI observes
+ * through [ThreadDao.observeThreads] / [MessageDao.observeForThread].
  *
- * Schema version 1 ships with destructive migrations enabled — the schema is small enough
- * that dropping the table on a schema change is acceptable. Switch to explicit migrations
- * before any production release.
+ * Schema version 2 (bumped from the former single `posts` table to the hierarchical
+ * `threads` + `messages` tables) ships with destructive migrations — the cache is
+ * regenerated from the backend on the next refresh, so dropping it on a schema change is
+ * acceptable. Switch to explicit migrations before any production release.
  */
-@Database(entities = [Post::class], version = 1, exportSchema = false)
+@Database(entities = [Thread::class, Message::class], version = 2, exportSchema = false)
 abstract class ForumDatabase : RoomDatabase() {
 
-    abstract fun postDao(): PostDao
+    abstract fun threadDao(): ThreadDao
+
+    abstract fun messageDao(): MessageDao
 
     companion object {
         private const val DB_NAME: String = "forum.db"

@@ -11,26 +11,29 @@ import com.elysium.softwork.iam.application.usecase.LoginUseCase
 import com.elysium.softwork.iam.application.usecase.RegisterUseCase
 import com.elysium.softwork.iam.application.usecase.RegisterWithGoogleUseCase
 import com.elysium.softwork.iam.domain.model.User
+import com.elysium.softwork.shared.data.network.BadRequestException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * UI state holder for the IAM flows (login, register, register-with-google).
+ * UI state holder for the IAM flows (login, register).
  *
  * The ViewModel owns no business logic: every authentication operation is delegated to an
  * application-layer use case, and this class is limited to (a) buffering the form input,
- * (b) deriving per-field validity flags for the screens, and (c) projecting the request
- * lifecycle into the read-only [state] stream that drives navigation and progress UI.
+ * (b) deriving per-field validity flags for the screens, (c) projecting the request
+ * lifecycle into the read-only [state] stream that drives navigation and progress UI, and
+ * (d) lifting a backend `400` field-validation message onto [FormState.fieldError] so the
+ * screen can render it under the offending input.
  *
  * Two streams are exposed:
- * - [state] — request lifecycle (`Idle`, `Loading`, `Success`, `Error`).
+ * - [state] — request lifecycle (`Idle`, `Loading`, `Success`, `MembershipRequired`, `Error`).
  * - [form] — current form values plus derived validation flags, recomputed per keystroke.
  *
  * @param loginUseCase signs the worker in with corporate credentials.
- * @param registerUseCase registers a new account with corporate credentials.
- * @param registerWithGoogleUseCase registers a new account through the Google flow.
+ * @param registerUseCase registers a new employee account.
+ * @param registerWithGoogleUseCase registers a Google-linked employee (same backend endpoint).
  */
 class AuthViewModel(
     private val loginUseCase: LoginUseCase,
@@ -46,18 +49,13 @@ class AuthViewModel(
         val confirmPassword: String = "",
         val isPasswordVisible: Boolean = false,
         val isConfirmPasswordVisible: Boolean = false,
-        val role: String = ROLE_EMPLOYEE,
+        val fieldError: String? = null,
     ) {
         val isEmailFormatValid: Boolean get() = email.isEmpty() || AuthValidation.isEmailValid(email)
         val isCorporateDomain: Boolean get() = AuthValidation.isCorporateDomain(email)
         val isPasswordValid: Boolean get() = AuthValidation.isPasswordValid(password)
         val passwordsMatch: Boolean get() = AuthValidation.doPasswordsMatch(password, confirmPassword)
         val isUsernameValid: Boolean get() = AuthValidation.isUsernameValid(username)
-
-        /** The Employee client only emits the EMPLOYEE role. */
-        companion object {
-            const val ROLE_EMPLOYEE: String = "EMPLOYEE"
-        }
     }
 
     private val _state: MutableStateFlow<AuthState> = MutableStateFlow(AuthState.Idle)
@@ -91,26 +89,32 @@ class AuthViewModel(
         _form.value = _form.value.copy(isConfirmPasswordVisible = !_form.value.isConfirmPasswordVisible)
     }
 
-    /** Resets the request stream back to [AuthState.Idle] — useful after dismissing an error. */
+    /** Resets the request stream back to [AuthState.Idle] and clears any captured field error. */
     fun consumeState() {
         _state.value = AuthState.Idle
+        _form.value = _form.value.copy(fieldError = null)
     }
     // endregion
 
     // region Actions
     /**
-     * Submits the login form. Strict validation (corporate-email format, 8+ char password)
-     * is intentionally relaxed while authentication runs against the mock backend — the
-     * only requirement is that both fields contain something. Re-tighten via
-     * `AuthValidation.isEmailValid` / `isPasswordValid` when the real backend is wired up.
+     * Submits the login form. Requires both fields to be non-blank; the backend owns
+     * credential validity. On success the membership flag is inspected: an active membership
+     * yields [AuthState.Success], anything else yields [AuthState.MembershipRequired] so the
+     * screen routes the worker into the payment onboarding gate.
      */
     fun submitLogin() {
         val current: FormState = _form.value
         if (current.email.isBlank() || current.password.isBlank()) return
-        runRequest { loginUseCase(current.email, current.password) }
+        runRequest(
+            onSuccess = { user ->
+                if (user.isMembershipActive()) AuthState.Success(user)
+                else AuthState.MembershipRequired(user)
+            },
+        ) { loginUseCase(current.email, current.password) }
     }
 
-    /** Submits the standard registration form. No-ops when validation fails. */
+    /** Submits the employee registration form. No-ops when validation fails. */
     fun submitRegister() {
         val current: FormState = _form.value
         if (!current.isUsernameValid) return
@@ -119,32 +123,57 @@ class AuthViewModel(
         if (!current.passwordsMatch) return
         runRequest {
             registerUseCase(
-                username = current.username,
+                name = current.username,
                 email = current.email,
                 password = current.password,
-                role = current.role,
             )
         }
     }
 
-    /** Submits the Google-flow registration (only username + role). */
+    /** Submits the Gmail registration (display name only; routed through `sign-up/employee`). */
     fun submitRegisterWithGoogle() {
         val current: FormState = _form.value
         if (!current.isUsernameValid) return
-        runRequest { registerWithGoogleUseCase(username = current.username, role = current.role) }
+        runRequest { registerWithGoogleUseCase(name = current.username) }
     }
     // endregion
 
-    private fun runRequest(block: suspend () -> Result<User>) {
+    /**
+     * Runs [block] off the form, projecting the result into [state]. [onSuccess] maps the
+     * resolved [User] to the terminal success state (login overrides it to branch on the
+     * membership flag). A [BadRequestException] failure additionally lifts its field-level
+     * message onto [FormState.fieldError] for inline display.
+     */
+    private fun runRequest(
+        onSuccess: (User) -> AuthState = { AuthState.Success(it) },
+        block: suspend () -> Result<User>,
+    ) {
         if (_state.value is AuthState.Loading) return
         _state.value = AuthState.Loading
+        _form.value = _form.value.copy(fieldError = null)
         viewModelScope.launch {
             val result: Result<User> = block()
             _state.value = result.fold(
-                onSuccess = { AuthState.Success(it) },
-                onFailure = { AuthState.Error(it.message ?: GENERIC_ERROR) },
+                onSuccess = onSuccess,
+                onFailure = { throwable ->
+                    val message = resolveError(throwable)
+                    if (throwable is BadRequestException) {
+                        _form.value = _form.value.copy(fieldError = message)
+                    }
+                    AuthState.Error(message)
+                },
             )
         }
+    }
+
+    /**
+     * Resolves a failure into a user-facing message. A [BadRequestException] yields the
+     * parsed `field_errors` message (e.g. the DNI length rule); anything else yields the
+     * exception message or a generic fallback.
+     */
+    private fun resolveError(throwable: Throwable): String = when (throwable) {
+        is BadRequestException -> throwable.response.primaryFieldError() ?: GENERIC_ERROR
+        else -> throwable.message ?: GENERIC_ERROR
     }
 
     companion object {

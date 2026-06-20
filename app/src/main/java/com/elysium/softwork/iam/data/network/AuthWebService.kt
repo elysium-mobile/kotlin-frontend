@@ -3,36 +3,44 @@ package com.elysium.softwork.iam.data.network
 import com.elysium.softwork.iam.domain.model.User
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.POST
 
 /**
- * Retrofit contract for IAM endpoints. The same [User] data class carries both the request
- * body and the response payload — no DTO/assembler boilerplate. Different endpoints fill
- * different subsets of [User] (see the model KDoc).
+ * Retrofit contract for the live IAM endpoints of the FlowWork Spring Boot API.
+ *
+ * The same [User] bean carries both request bodies and response payloads (the bean
+ * shortcut) — different endpoints fill different subsets of its nullable fields. Only the
+ * employee paths are declared here: the HR/RRHH sign-up endpoint is intentionally absent,
+ * since this client is exclusively the employee experience.
+ *
+ * All paths are **relative** — the host + `/` base lives in `BuildConfig.BACKEND_BASE_URL`
+ * (resolved by `ApiClient`). The `Authorization` header is attached automatically by
+ * `AuthInterceptor`; the two public auth paths below are skipped by it.
  */
 interface AuthWebService {
 
     /**
-     * Authenticates an existing employee. Send a [User] with [User.email] and [User.password]
-     * populated; the server response includes [User.id], [User.username], [User.role], and
-     * [User.token].
+     * Authenticates an existing worker. Send [User.email] + [User.password]; the response
+     * fills [User.id] (the user-account id), [User.gmail], and [User.token].
      */
-    @POST("auth/login")
-    suspend fun login(@Body credentials: User): Response<User>
+    @POST("api/v1/authentication/sign-in")
+    suspend fun signIn(@Body credentials: User): Response<User>
 
     /**
-     * Registers a new employee. Send a [User] with [User.username], [User.email],
-     * [User.password], and [User.role] populated.
+     * Registers a new employee account. Send the employee sign-up subset of [User]
+     * ([User.name], [User.lastName], [User.email], [User.password], [User.dni],
+     * [User.anonymousName], [User.dateStart], [User.position], [User.salary]); the response
+     * fills [User.id], [User.gmail], and [User.token].
      */
-    @POST("auth/register")
-    suspend fun register(@Body user: User): Response<User>
+    @POST("api/v1/authentication/sign-up/employee")
+    suspend fun signUpEmployee(@Body request: User): Response<User>
 
     /**
-     * Completes registration for an account that authenticated through Google's identity
-     * provider. The caller has already obtained an OAuth identity, so only [User.username]
-     * and [User.role] are required from the device — the server resolves email + identity
-     * server-side from the bearer token used on this call.
+     * Lists every employee profile. Used by the post-login sequential sync to locate the
+     * worker's own row by matching [User.user_account_id] against the persisted account id,
+     * then extracting [User.employee_profile_id].
      */
-    @POST("auth/google/register")
-    suspend fun registerWithGoogle(@Body user: User): Response<User>
+    @GET("api/v1/employee-profile")
+    suspend fun getEmployeeProfiles(): Response<List<User>>
 }

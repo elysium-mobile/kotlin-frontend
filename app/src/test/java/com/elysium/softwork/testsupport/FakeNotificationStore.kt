@@ -2,27 +2,24 @@ package com.elysium.softwork.testsupport
 
 import com.elysium.softwork.notifications.data.store.NotificationStore
 import com.elysium.softwork.notifications.domain.model.Notification
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
+import com.elysium.softwork.notifications.domain.model.NotificationDetail
 
 /**
  * In-memory test double for [NotificationStore].
  *
- * Backs [getNotifications] with a [MutableStateFlow] so tests can drive the feed
- * through [emit]. Subscribers see the current snapshot synchronously on first
- * collection and every subsequent mutation as a new emission, mirroring the contract
- * of the production Retrofit-backed implementation that will replace it.
+ * Deterministic: each read returns the value programmed via the public `next*` properties,
+ * so tests can drive both the happy path (seeded notifications + details that the use case
+ * joins) and the failure path (a programmed [Result.failure], e.g. a `BadRequestException`).
+ *
+ * @property nextNotificationsResult value returned by the next [getNotifications] call.
+ * @property nextDetailsResult value returned by the next [getNotificationDetails] call.
  */
 open class FakeNotificationStore(
-    initial: List<Notification> = emptyList(),
+    var nextNotificationsResult: Result<List<Notification>> = Result.success(emptyList()),
+    var nextDetailsResult: Result<List<NotificationDetail>> = Result.success(emptyList()),
 ) : NotificationStore {
 
-    private val _notifications: MutableStateFlow<List<Notification>> = MutableStateFlow(initial)
+    override suspend fun getNotifications(): Result<List<Notification>> = nextNotificationsResult
 
-    override fun getNotifications(): Flow<List<Notification>> = _notifications
-
-    /** Test-only emission helper. Replaces the list seen by subscribers. */
-    fun emit(list: List<Notification>) {
-        _notifications.value = list
-    }
+    override suspend fun getNotificationDetails(): Result<List<NotificationDetail>> = nextDetailsResult
 }

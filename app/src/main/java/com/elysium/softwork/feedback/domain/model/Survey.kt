@@ -1,19 +1,32 @@
 package com.elysium.softwork.feedback.domain.model
 
 /**
- * A pending HR survey the worker is invited to answer.
+ * An HR survey the worker can answer — the single annotation-free bean for the `surveys`
+ * endpoints (the *Bean / Pragmatic Shortcut*).
  *
- * Immutable domain entity, framework-agnostic by design: property names match the backend
- * wire keys exactly so the data layer's JSON serializer resolves them by reflection
- * without mapping annotations. All fields default to empty values so partial payloads
- * construct cleanly.
+ * Framework-agnostic by design: property names match the backend wire keys exactly, so the
+ * JSON serializer resolves them by reflection without `@SerializedName`. The backend uses a
+ * mixed snake_case/camelCase contract where request and response keys diverge for the same
+ * concept, so those asymmetric keys coexist here as nullable fields and a given endpoint
+ * fills only its subset:
+ * - **target type**: request key `targetType`, response key `target_type`.
+ * - **expiration**: request key `expirationType` (the DTO's quirky name), response key
+ *   `expiration_time`.
  *
- * @property id stable identifier issued by the backend (or a mock literal in the seed set).
- * @property title short headline rendered in the survey card.
+ * @property survey_id primary key returned by every survey response.
+ * @property title survey headline rendered in the card.
  * @property description one-line context shown beneath the title.
+ * @property targetType audience selector on the **create request** (`targetType`).
+ * @property target_type audience selector on the **response** (`target_type`).
+ * @property expirationType expiration on the **create request** (`expirationType`).
+ * @property expiration_time expiration on the **response** (`expiration_time`).
  */
 data class Survey(
-    val id: String = "",
-    val title: String = "",
-    val description: String = "",
+    val survey_id: Long? = null,
+    val title: String? = null,
+    val description: String? = null,
+    val targetType: String? = null,
+    val target_type: String? = null,
+    val expirationType: String? = null,
+    val expiration_time: String? = null,
 )

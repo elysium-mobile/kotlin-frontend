@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.elysium.softwork.SoftWorkApplication
 import com.elysium.softwork.worker.forum.application.usecase.GetForumReportsUseCase
-import com.elysium.softwork.worker.forum.domain.model.ForumReport
+import com.elysium.softwork.worker.forum.domain.model.Report
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,7 +28,7 @@ class ReportsStatusViewModel(
     /** Coarse UI state for the reports list. */
     sealed interface UiState {
         data object Loading : UiState
-        data class Ready(val reports: List<ForumReport>) : UiState
+        data class Ready(val reports: List<Report>) : UiState
         data class Error(val message: String) : UiState
     }
 

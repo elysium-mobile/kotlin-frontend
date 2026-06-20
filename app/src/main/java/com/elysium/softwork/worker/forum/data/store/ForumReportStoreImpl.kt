@@ -1,93 +1,66 @@
 package com.elysium.softwork.worker.forum.data.store
 
-import com.elysium.softwork.worker.forum.data.network.ForumReportWebService
+import com.elysium.softwork.shared.data.network.BadRequestException
+import com.elysium.softwork.shared.data.network.BadRequestResponse
+import com.elysium.softwork.worker.forum.data.network.ForumWebService
 import com.elysium.softwork.worker.forum.domain.ForumReportStore
-import com.elysium.softwork.worker.forum.domain.model.ForumReport
-import com.elysium.softwork.shared.utils.values.ReportStatus
-import kotlinx.coroutines.delay
+import com.elysium.softwork.worker.forum.domain.model.Report
+import com.google.gson.Gson
+import retrofit2.Response
 
 /**
- * Implementation of [ForumReportStore] using Retrofit.
+ * Concrete [ForumReportStore] backed by the live FlowWork Spring Boot API.
  *
- * Demo fallback: [list] returns a bundled sample list when the network round-trip fails so
- * the reports-status screen always has something to render. Remove [SampleReports] once
- * the remote endpoint is reachable.
+ * No mock harness, no `SampleReports`, no artificial delay: both operations drive
+ * [ForumWebService] directly and wrap their result in [Result], parsing a `400` into a
+ * [BadRequestException] so the presentation layer can read the `field_errors`.
  *
- * @property webService the Retrofit service for reports.
+ * @param webService Retrofit contract for the forum endpoints (reports included).
+ * @param gson deserializer for the structured `400` validation payload.
  */
 class ForumReportStoreImpl(
-    private val webService: ForumReportWebService,
+    private val webService: ForumWebService,
+    private val gson: Gson,
 ) : ForumReportStore {
 
-    override suspend fun submit(report: ForumReport): Result<ForumReport> = runCatching {
-        // For development/demo purposes, we add a artificial delay.
-        // In a real scenario, this would only be the network call.
-        delay(1000)
+    override suspend fun submit(report: Report): Result<Report> =
+        runCatching { unwrap(webService.createReport(report)) }
 
-        val response = webService.submitReport(report)
+    override suspend fun list(): Result<List<Report>> =
+        runCatching { unwrapList(webService.getReports()) }
+
+    /** Unwraps a single-object [response]; a `400` becomes a [BadRequestException]. */
+    private fun <T> unwrap(response: Response<T>): T {
         if (response.isSuccessful) {
-            response.body() ?: throw Exception("Empty response body")
-        } else {
-            throw Exception("Failed to submit report: ${response.code()}")
+            return response.body() ?: error("Empty response body")
         }
+        throwTyped(response)
     }
 
-    override suspend fun list(): Result<List<ForumReport>> = runCatching {
-        try {
-            val response = webService.listReports()
-            if (response.isSuccessful) {
-                return@runCatching response.body() ?: emptyList()
-            }
-        } catch (_: Throwable) {
-            // Fall through to the seed branch below.
+    /** Unwraps a list [response], tolerating an empty body as an empty list. */
+    private fun <T> unwrapList(response: Response<List<T>>): List<T> {
+        if (response.isSuccessful) {
+            return response.body().orEmpty()
         }
-        // Network unreachable or non-2xx: surface the bundled samples so the UI keeps working
-        // during the no-backend demo. Replace with `throw` once the endpoint is live.
-        SampleReports
+        throwTyped(response)
+    }
+
+    /**
+     * Converts a non-2xx [response] into a typed failure: a `400` into a [BadRequestException]
+     * carrying the parsed [BadRequestResponse], anything else into an [IllegalStateException].
+     */
+    private fun throwTyped(response: Response<*>): Nothing {
+        val rawError: String? = runCatching { response.errorBody()?.string() }.getOrNull()
+        if (response.code() == HTTP_BAD_REQUEST) {
+            val parsed: BadRequestResponse = rawError
+                ?.let { runCatching { gson.fromJson(it, BadRequestResponse::class.java) }.getOrNull() }
+                ?: BadRequestResponse(message = rawError)
+            throw BadRequestException(parsed)
+        }
+        error("HTTP ${response.code()} ${response.message().ifBlank { rawError ?: "request failed" }}")
     }
 
     private companion object {
-        /**
-         * Bundled sample reports used by [list] when the network call fails. Each entry
-         * exercises a different [ReportStatus] so the status pills can be reviewed without
-         * actually submitting anything.
-         */
-        private val NOW: Long = System.currentTimeMillis()
-
-        val SampleReports: List<ForumReport> = listOf(
-            ForumReport(
-                id = "sample-1",
-                postId = "seed-2",
-                type = "Acoso",
-                area = "Recursos Humanos",
-                description = "Reporte de comentarios inapropiados en una reunión interna.",
-                date = "12 / 05 / 2026",
-                isAnonymous = true,
-                status = ReportStatus.UNDER_REVIEW.key,
-                createdAt = NOW - 1_000L * 60 * 60 * 24 * 2,
-            ),
-            ForumReport(
-                id = "sample-2",
-                postId = "seed-1",
-                type = "Ética",
-                area = "Operaciones",
-                description = "Posible conflicto de intereses en la asignación de proyectos.",
-                date = "03 / 05 / 2026",
-                isAnonymous = true,
-                status = ReportStatus.PENDING.key,
-                createdAt = NOW - 1_000L * 60 * 60 * 24 * 7,
-            ),
-            ForumReport(
-                id = "sample-3",
-                postId = "seed-3",
-                type = "Seguridad",
-                area = "Tecnología",
-                description = "Acceso indebido a un repositorio interno.",
-                date = "22 / 04 / 2026",
-                isAnonymous = false,
-                status = ReportStatus.RESOLVED.key,
-                createdAt = NOW - 1_000L * 60 * 60 * 24 * 25,
-            ),
-        )
+        const val HTTP_BAD_REQUEST: Int = 400
     }
 }

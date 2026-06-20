@@ -35,6 +35,7 @@ import com.elysium.softwork.shared.presentation.components.SoftWorkButton
 import com.elysium.softwork.shared.presentation.components.SoftWorkCard
 import com.elysium.softwork.shared.presentation.theme.AccentDark
 import com.elysium.softwork.shared.presentation.theme.AccentWhite
+import com.elysium.softwork.shared.presentation.theme.Danger
 import com.elysium.softwork.shared.presentation.theme.PrimaryNavy
 import com.elysium.softwork.shared.utils.discriminators.ButtonVariant
 
@@ -46,16 +47,17 @@ import com.elysium.softwork.shared.utils.discriminators.ButtonVariant
  * full-width "Start" button at the bottom.
  *
  * @param onBack invoked when the user taps the back arrow in the header.
- * @param onStartSurvey invoked when the user taps "Start" on a survey card; the survey
- *   identifier is forwarded so the host can route to the answer flow.
+ * @param onStartSurvey invoked when the user taps "Start" on a survey card; the backend
+ *   `survey_id` is forwarded so the host can route to the answer flow.
  */
 @Composable
 fun PendingSurveysScreen(
     onBack: () -> Unit,
-    onStartSurvey: (String) -> Unit,
+    onStartSurvey: (Long?) -> Unit,
     viewModel: PendingSurveysViewModel = viewModel(factory = PendingSurveysViewModel.Factory),
 ) {
     val surveys: List<Survey> by viewModel.surveys.collectAsState()
+    val errorMessage: String? by viewModel.errorMessage.collectAsState()
 
     Column(
         modifier = Modifier
@@ -64,15 +66,26 @@ fun PendingSurveysScreen(
     ) {
         SurveysHeader(onBack = onBack)
 
+        errorMessage?.let { message ->
+            Text(
+                text = message,
+                color = Danger,
+                fontSize = 14.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+            )
+        }
+
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            items(items = surveys, key = { it.id }) { survey ->
+            items(items = surveys, key = { it.survey_id ?: 0L }) { survey ->
                 SurveyCard(
                     survey = survey,
-                    onStart = { onStartSurvey(survey.id) },
+                    onStart = { onStartSurvey(survey.survey_id) },
                 )
             }
         }
@@ -116,14 +129,14 @@ private fun SurveyCard(
     SoftWorkCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = survey.title,
+                text = survey.title.orEmpty(),
                 color = PrimaryNavy,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = survey.description,
+                text = survey.description.orEmpty(),
                 color = AccentDark,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Normal,

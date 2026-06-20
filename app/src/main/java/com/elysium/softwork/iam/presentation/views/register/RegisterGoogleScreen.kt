@@ -29,7 +29,6 @@ import com.elysium.softwork.R
 import com.elysium.softwork.iam.application.AuthState
 import com.elysium.softwork.iam.presentation.viewmodel.AuthViewModel
 import com.elysium.softwork.iam.presentation.components.BackTopBar
-import com.elysium.softwork.iam.presentation.components.RoleSelectorCard
 import com.elysium.softwork.shared.utils.discriminators.ButtonVariant
 import com.elysium.softwork.shared.presentation.components.SoftWorkButton
 import com.elysium.softwork.shared.presentation.components.SoftWorkTextField
@@ -37,9 +36,10 @@ import com.elysium.softwork.shared.presentation.theme.AccentDark
 import com.elysium.softwork.shared.presentation.theme.PrimaryNavy
 
 /**
- * Register flow for accounts that authenticated through Google. Email + password are not
- * collected here — the server already has them. The user only chooses a display name and
- * confirms the role.
+ * Register flow for Google-linked employees. Email + password are not collected here — the
+ * Google identity resolves them server-side via the shared `sign-up/employee` endpoint. The
+ * worker only chooses a display name. A backend `400` (e.g. the DNI rule) is surfaced under
+ * the input through [AuthViewModel.FormState.fieldError].
  */
 @Composable
 fun RegisterGoogleScreen(
@@ -93,11 +93,18 @@ fun RegisterGoogleScreen(
                 value = form.username,
                 onValueChange = viewModel::onUsernameChange,
                 label = stringResource(R.string.username_label),
+                isError = form.fieldError != null,
             )
 
-            Spacer(Modifier.height(20.dp))
-
-            RoleSelectorCard()
+            // Backend field-validation message surfaced under the identity input.
+            form.fieldError?.let { fieldError ->
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = fieldError,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
 
             Spacer(Modifier.height(28.dp))
 

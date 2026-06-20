@@ -1,28 +1,32 @@
 package com.elysium.softwork.payment.membership.domain.model
 
 /**
- * A SoftWork membership tier the worker can subscribe to.
+ * A subscription plan tier — the annotation-free bean for the `membership-plans` endpoints
+ * (the *Bean / Pragmatic Shortcut*).
  *
- * Immutable domain entity, framework-agnostic by design: property names match the backend
- * wire keys exactly so the data layer's JSON serializer resolves them by reflection
- * without mapping annotations. All fields default to empty values so partially populated
- * payloads construct cleanly.
+ * Property names match the backend wire keys exactly so Gson resolves them by reflection
+ * without `@SerializedName`. The plan name and owning membership arrive under camelCase keys
+ * on the request and snake_case on the response, so both spellings coexist as nullable
+ * fields. The former `monthlyPrice` string is replaced by the backend's integer [price]; the
+ * UI formats it for display. The former hardcoded `features` list is now the nested
+ * [benefit_response_list].
  *
- * @property key stable identifier persisted as the active-plan flag once the worker
- *   activates a membership.
- * @property name display name (e.g. "Basic", "Plan Pro"). Always presented in English in
- *   this bounded context regardless of the active app locale.
- * @property monthlyPrice price label exactly as it should appear in the UI, including the
- *   currency symbol (e.g. "S/. 99"). Treating it as a pre-formatted string lets the backend
- *   own locale and currency choices instead of leaking them into the UI layer.
- * @property features bullet list of features included in this tier.
- * @property isRecommended `true` when the UI should highlight this tier as the recommended
- *   path (teal accent). Drives the per-card color scheme on the selection screen.
+ * @property plan_id primary key returned by every plan response; the stable identifier the
+ *   membership gate persists as the active plan.
+ * @property planName plan name on the **create request** (`planName`).
+ * @property plan_name plan name on the **response** (`plan_name`).
+ * @property price plan price (the UI formats the currency for display).
+ * @property membershipId owning membership on the **create request** (`membershipId`).
+ * @property membership_id owning membership on the **response** (`membership_id`); forwarded
+ *   when creating the purchase order.
+ * @property benefit_response_list nested benefits; their titles render as plan feature rows.
  */
 data class MembershipPlan(
-    val key: String = "",
-    val name: String = "",
-    val monthlyPrice: String = "",
-    val features: List<String> = emptyList(),
-    val isRecommended: Boolean = false,
+    val plan_id: Long? = null,
+    val planName: String? = null,
+    val plan_name: String? = null,
+    val price: Int? = null,
+    val membershipId: Long? = null,
+    val membership_id: Long? = null,
+    val benefit_response_list: List<Benefit>? = null,
 )

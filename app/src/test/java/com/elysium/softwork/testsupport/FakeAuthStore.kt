@@ -24,11 +24,13 @@ import com.elysium.softwork.iam.domain.model.User
  * @property nextLoginResult value returned by the next [login] call.
  * @property nextRegisterResult value returned by the next [register] call.
  * @property nextRegisterWithGoogleResult value returned by the next [registerWithGoogle] call.
+ * @property nextReauthenticateResult value returned by the next [reauthenticate] call.
  */
 open class FakeAuthStore(
     var nextLoginResult: Result<User> = Result.success(DEFAULT_USER),
     var nextRegisterResult: Result<User> = Result.success(DEFAULT_USER),
     var nextRegisterWithGoogleResult: Result<User> = Result.success(DEFAULT_USER),
+    var nextReauthenticateResult: Result<User> = Result.success(DEFAULT_USER),
 ) : AuthStore {
 
     /** Number of times each method has been invoked. Useful for "called exactly once" assertions. */
@@ -39,6 +41,9 @@ open class FakeAuthStore(
         private set
 
     var registerWithGoogleInvocations: Int = 0
+        private set
+
+    var reauthenticateInvocations: Int = 0
         private set
 
     var clearSessionInvocations: Int = 0
@@ -52,8 +57,8 @@ open class FakeAuthStore(
     var lastRegisterArgs: RegisterArgs? = null
         private set
 
-    /** Arguments of the most recent [registerWithGoogle] call. */
-    var lastRegisterWithGoogleArgs: Pair<String, String>? = null
+    /** Display name passed to the most recent [registerWithGoogle] call. */
+    var lastRegisterWithGoogleArg: String? = null
         private set
 
     /** Token returned by [activeToken]. Defaults to `null` so the auth gate routes to LOGIN. */
@@ -65,21 +70,21 @@ open class FakeAuthStore(
         return nextLoginResult
     }
 
-    override suspend fun register(
-        username: String,
-        email: String,
-        password: String,
-        role: String,
-    ): Result<User> {
+    override suspend fun register(name: String, email: String, password: String): Result<User> {
         registerInvocations += 1
-        lastRegisterArgs = RegisterArgs(username, email, password, role)
+        lastRegisterArgs = RegisterArgs(name, email, password)
         return nextRegisterResult
     }
 
-    override suspend fun registerWithGoogle(username: String, role: String): Result<User> {
+    override suspend fun registerWithGoogle(name: String): Result<User> {
         registerWithGoogleInvocations += 1
-        lastRegisterWithGoogleArgs = username to role
+        lastRegisterWithGoogleArg = name
         return nextRegisterWithGoogleResult
+    }
+
+    override suspend fun reauthenticate(): Result<User> {
+        reauthenticateInvocations += 1
+        return nextReauthenticateResult
     }
 
     override fun activeToken(): String? = storedToken
@@ -91,19 +96,17 @@ open class FakeAuthStore(
 
     /** Captured argument tuple for [register], grouped so assertions stay legible. */
     data class RegisterArgs(
-        val username: String,
+        val name: String,
         val email: String,
         val password: String,
-        val role: String,
     )
 
     companion object {
         /** Default user surfaced on success unless a test overrides [nextLoginResult] etc. */
         val DEFAULT_USER: User = User(
-            id = "test-user",
-            username = "test",
-            email = "test@elysium.com",
-            role = "EMPLOYEE",
+            id = 1L,
+            name = "test",
+            gmail = "test@elysium.com",
             token = "TEST_TOKEN",
         )
     }

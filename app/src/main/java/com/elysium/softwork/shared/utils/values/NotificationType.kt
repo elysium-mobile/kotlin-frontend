@@ -22,7 +22,13 @@ enum class NotificationType(val key: String) {
     MESSAGE("message");
 
     companion object {
-        /** Resolves a wire key into a [NotificationType], returning `null` on unknown input. */
-        fun fromKey(key: String?): NotificationType? = entries.firstOrNull { it.key == key }
+        /**
+         * Resolves a wire key into a [NotificationType], returning `null` on unknown input.
+         *
+         * Matching is **case-insensitive** so the backend may send the category in any casing
+         * (`survey`, `SURVEY`, `Survey`) and still resolve precisely.
+         */
+        fun fromKey(key: String?): NotificationType? =
+            key?.let { raw -> entries.firstOrNull { it.key.equals(raw, ignoreCase = true) } }
     }
 }

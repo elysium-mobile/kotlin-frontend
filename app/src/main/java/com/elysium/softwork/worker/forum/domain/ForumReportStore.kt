@@ -1,25 +1,18 @@
 package com.elysium.softwork.worker.forum.domain
 
-import com.elysium.softwork.worker.forum.domain.model.ForumReport
+import com.elysium.softwork.worker.forum.domain.model.Report
 
 /**
- * Domain contract for submitting and managing forum reports.
+ * Domain contract for submitting and listing content/conduct reports.
+ *
+ * Returns [Result] so callers get a single error channel — a `400 Bad Request` surfaces as a
+ * [com.elysium.softwork.shared.data.network.BadRequestException].
  */
 interface ForumReportStore {
-    /**
-     * Submits a new report to the backend.
-     *
-     * @param report the report details to send.
-     * @return [Result] containing the server-assigned report if successful.
-     */
-    suspend fun submit(report: ForumReport): Result<ForumReport>
 
-    /**
-     * Returns the authenticated user's submitted reports with their current status.
-     *
-     * Used by the home-screen "report status" entry point to render the tracking list.
-     * The implementation may fall back to a bundled sample list when the backend is
-     * unreachable so the screen stays usable during demos.
-     */
-    suspend fun list(): Result<List<ForumReport>>
+    /** Submits a new report (`POST /api/v1/reports`). */
+    suspend fun submit(report: Report): Result<Report>
+
+    /** Lists the submitted reports (`GET /api/v1/reports`). */
+    suspend fun list(): Result<List<Report>>
 }

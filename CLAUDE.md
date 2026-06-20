@@ -508,6 +508,12 @@ class. AppCompatActivity remains fully Compose-compatible — `enableEdgeToEdge(
 
 ### ✅ Phase 4 — Forum bounded context (complete, offline-first)
 
+> **⚠️ Superseded by Phase 12 (Forum backend integration).** The flat `Post` model is gone:
+> the context now mirrors the backend `Forum → Category → Thread → Message` hierarchy
+> (+ `Asset`, `Report`), the Room cache holds `threads`/`messages` tables, `ForumStoreImpl`
+> is Retrofit-backed (no `SeedPosts`), and the screens render Threads/Messages. See the
+> Phase 12 section below. The historical Phase 4 notes are retained for context.
+
 - **Domain**: [`Post`](app/src/main/java/com/elysium/softwork/forum/domain/model/Post.kt) data
   class doubles as a Room `@Entity(tableName = "posts")` and a Gson `@SerializedName` bean —
   the same instance flows through `PostWebService` requests/responses and into the local
@@ -561,6 +567,12 @@ class. AppCompatActivity remains fully Compose-compatible — `enableEdgeToEdge(
 - Image / attachment toolbar buttons are no-ops (Phase 5 will wire the picker).
 
 ### 🧪 Mock Testing Harness (temporary — for UI walkthroughs before the backend lands)
+
+> **⚠️ Superseded for IAM (Phase 9).** Items **#1 and #2 below no longer apply** — the IAM
+> stack now talks to the live Spring Boot API (see "Phase 9 — Backend integration (IAM +
+> shared)" below). `AuthStoreImpl.login` is real, the `MOCK_*` companion is deleted, and the
+> only remaining shortcut is **#3 (forum seed)**, which is out of Phase 9's scope and still
+> active. The #1/#2 text is retained for historical context only.
 
 To let the team exercise the full login → home → forum → profile → logout journey without
 a reachable backend, three deliberate shortcuts are layered on top of the real stack.
@@ -629,6 +641,12 @@ hook.
 
 ### ✅ Phase 5 (in progress) — Feedback bounded context
 
+> **⚠️ Superseded by Phase 10 (Feedback backend integration).** The survey stack now talks
+> to the live Spring Boot API — `SurveyStoreImpl` is Retrofit-backed (no more string-resource
+> mock), the `Survey` bean carries the real (annotation-free) wire keys, and `QuestionSurvey`
+> / `SurveyResponse` beans + a submission use case were added. See the Phase 10 section below.
+> The historical Phase 5 notes are retained for context.
+
 - **Domain**: [`Survey`](app/src/main/java/com/elysium/softwork/feedback/domain/model/Survey.kt)
   data class with `id` / `title` / `description`, annotated with `@SerializedName` per the
   bean shortcut so it doubles as the future wire bean.
@@ -659,6 +677,13 @@ hook.
   both `values/strings.xml` and `values-es/strings.xml`.
 
 ### ✅ Phase 6 (in progress) — Notifications bounded context
+
+> **⚠️ Superseded by Phase 11 (Notifications backend integration).** The notification stack
+> now talks to the live Spring Boot API — `NotificationStoreImpl` is Retrofit-backed (no more
+> string-resource mock), the `Notification` bean carries the real wire keys (split from the
+> human-readable `NotificationDetail`), and the feed is a `NotificationFeedItem` aggregate
+> assembled by the use case. See the Phase 11 section below. The historical Phase 6 notes are
+> retained for context.
 
 - **Domain**: [`Notification`](app/src/main/java/com/elysium/softwork/notifications/domain/model/Notification.kt)
   data class (`id` / `type` / `title` / `description` / `isRead`) annotated with
@@ -705,6 +730,13 @@ hook.
   dedicated glyphs (e.g. `ic_money`, `ic_mail`) when the brand library expands.
 
 ### ✅ Phase 7 (in progress) — Payment / Membership bounded context
+
+> **⚠️ Superseded by Phase 13 (Payment backend integration).** The hardcoded `PlanCatalogue`,
+> the mock payment `delay`, and the fake in-memory plan list are gone: the context now talks
+> to the live payment-service API (`memberships` / `orders` / `payments` / `membership-plans`
+> / `benefits`), `MembershipPlan` carries the real wire keys, and checkout creates an order +
+> payment then re-authenticates. The local membership **gate** (`hasMembership` /
+> `currentPlanKey`) and the client-side saved cards are retained. See Phase 13 below.
 
 - **Domain**: [`MembershipPlan`](app/src/main/java/com/elysium/softwork/payment/membership/domain/model/MembershipPlan.kt)
   (`key` / `name` / `monthlyPrice` / `features` / `isRecommended`) and
@@ -900,13 +932,308 @@ the platform-painted background matches the Compose-painted background from the
 very first frame onward. This pin is what prevents a "black until Compose
 paints" window on devices in system dark mode.
 
+### ✅ Phase 9 — Backend integration (IAM + shared) against the live Spring Boot API
+
+The IAM and shared contexts now talk to the real FlowWork backend (contract in
+`API_DOCUMENTATION.md`). All IAM mocks are deleted. **Employee-exclusive**: the HR/RRHH
+sign-up route and the `RoleSelectorCard` are removed — the role picker is gone because
+`sign-up/employee` already scopes every account to the worker experience. **Dual
+registration is preserved**: both the standard `RegisterScreen` and the Gmail
+`RegisterGoogleScreen` flow through the *same* `POST /api/v1/authentication/sign-up/employee`
+endpoint (the backend has no dedicated Google route — the Google identity resolves the email
+server-side, so the device sends only the display name).
+
+- **Network (`shared/data/network/`)**:
+  - `ApiClient` sources the base URL exclusively from `BuildConfig.BACKEND_BASE_URL` and now
+    chains [`AuthInterceptor`](app/src/main/java/com/elysium/softwork/shared/data/network/AuthInterceptor.kt)
+    **first** in the OkHttp chain. The interceptor reads the live JWT per request via a
+    provider installed by `ServiceLocator` (`ApiClient.installTokenProvider { … KEY_AUTH_TOKEN }`),
+    attaches `Authorization: Bearer <token>`, and **skips** the public auth paths
+    (`/authentication/sign-in`, `/authentication/sign-up/employee`) by path-suffix match.
+    `ApiClient` stays a `Context`-free `object`; the token supplier is the only new state.
+  - [`BadRequestResponse`](app/src/main/java/com/elysium/softwork/shared/data/network/BadRequestResponse.kt)
+    mirrors the backend 400 payload (`status` / `error` / `message` / `field_errors`), with
+    `primaryFieldError()` preferring the `"argument"` key. A sibling `BadRequestException`
+    carries the parsed payload through the `Result` failure channel.
+- **Persistence (`shared/data/local/SharedPrefsManager`)**: added `getLong` / `putLong` and
+  keys `KEY_USER_ACCOUNT_ID` (Long), `KEY_EMPLOYEE_PROFILE_ID` (Long), `KEY_USER_EMAIL`,
+  `KEY_USER_PASSWORD`. The plaintext password is **required** for re-authentication (see
+  below). `KEY_USER_ID` was removed (superseded by `KEY_USER_ACCOUNT_ID`).
+- **Domain (`iam/domain/model/User`)**: one annotation-free bean spans `sign-in`,
+  `sign-up/employee`, and `employee-profile`. Asymmetric wire keys coexist as nullable
+  fields: `email` (request) vs `gmail` (response); `start_date` (request) vs `dateStart`
+  (response); plus `id`/`user_account_id`/`employee_profile_id`, the employee sign-up
+  payload, and a forward-looking `membershipStatus`. `id` is now `Long?`. `isMembershipActive()`
+  treats only `"ACTIVE"` as active (null ⇒ not active).
+- **Network service (`iam/data/network/AuthWebService`)**: exact live routes —
+  `POST api/v1/authentication/sign-in`, `POST api/v1/authentication/sign-up/employee`,
+  `GET api/v1/employee-profile` (returns `List<User>`). Relative paths only.
+- **Store (`iam/data/store/AuthStoreImpl`)**: mocks + `MOCK_*` companion + `delay` deleted.
+  `login`/`register`/`registerWithGoogle` funnel through `persistSessionAndSyncProfile`,
+  which (1) persists token, account id, and credentials, then (2) runs the **sequential**
+  `employee-profile` lookup, matching the worker's row by `user_account_id` and persisting
+  `employee_profile_id` (best-effort — a profile hiccup never voids a valid session).
+  `registerWithGoogle(name)` reuses `signUpEmployee` and stores a blank password (Google
+  re-auth, not `reauthenticate`). `unwrap` parses a 400 into `BadRequestException`;
+  `reauthenticate()` re-runs `sign-in` from the stored credentials (no refresh endpoint
+  exists — used after a membership payment).
+- **Application / presentation**:
+  - `RegisterUseCase` drops `role` (`name`/`email`/`password`). `RegisterWithGoogleUseCase`
+    drops `role` and takes the display `name` only (routed to `sign-up/employee`).
+  - `AuthState` gains `MembershipRequired(user)`. `AuthViewModel` removes `role`, keeps the
+    `submitRegisterWithGoogle` action, adds `FormState.fieldError`, lifts a 400 `field_errors`
+    message (the DNI rule) onto both the error state and `fieldError`, and on login branches
+    `Success` vs `MembershipRequired` by membership status.
+  - `LoginScreen` routes `MembershipRequired → onMembershipRequired` (wired to the host's
+    `onAuthComplete`), so an inactive membership lands the worker in `PaymentOnboardingHost`
+    via the existing Phase 7 gate. The `GoogleOutlineButton` entry point is retained.
+  - `RegisterScreen` and `RegisterGoogleScreen` drop `RoleSelectorCard` and render
+    `fieldError` under the identity input. The `register-google` destination is retained in
+    `AuthRoutes`/`AuthNavHost`.
+- **Tests**: `FakeAuthStore` + `AuthViewModelTest` updated to the new signatures (including
+  `registerWithGoogle(name)`), plus new coverage for the `MembershipRequired` branch and the
+  400 → `fieldError` path.
+
+#### Phase 9 caveats / follow-ups
+
+- **Membership source is still local.** The reactive gate reads `KEY_HAS_MEMBERSHIP`
+  (Phase 7). The backend currently returns no `membershipStatus` on `sign-in`, so every
+  fresh login is treated as not-active and routed to payment onboarding (the intended demo
+  flow). When the backend begins sending `membershipStatus`, route an `ACTIVE` login through
+  `MembershipStore.activateMembership(...)` so the gate's `StateFlow` opens reactively.
+- **`reauthenticate()` is implemented but not yet wired** into the payment-success flow
+  (that wiring lives in `payment.membership`, outside this change's scope). After a
+  successful payment, call `authStore.reauthenticate()` to refresh the token.
+- **Registration is intentionally minimal.** The form collects name/email/password only; the
+  backend `sign-up/employee` also requires `dni`/`lastName`/`phoneNumber`/`dateStart`/
+  `position`/`salary`. Those land via a fuller form later — until then the 400 handler
+  surfaces the backend's field errors (e.g. the DNI length rule) inline.
+
+### ✅ Phase 10 — Feedback backend integration against the live Spring Boot API
+
+The `feedback` survey stack now talks to the real FlowWork backend. All survey mocks are
+deleted; the AI-chat sub-context (`FeedbackStore`/`AiChatViewModel`) is untouched.
+
+- **Domain (`feedback/domain/model/`)** — three annotation-free beans matching the backend's
+  mixed snake/camelCase contract, with asymmetric request/response keys coexisting as nullable
+  fields (no `@SerializedName`):
+  - [`Survey`](app/src/main/java/com/elysium/softwork/feedback/domain/model/Survey.kt):
+    `survey_id`, `title`, `description`, `targetType`/`target_type`,
+    `expirationType`/`expiration_time`. (Replaces the old non-null `id`/`title`/`description`.)
+  - [`QuestionSurvey`](app/src/main/java/com/elysium/softwork/feedback/domain/model/QuestionSurvey.kt):
+    `question_survey_id`, `textQuestion`/`text_question`, `questionType`/`question_type`,
+    `surveyId`/`survey_id`.
+  - [`SurveyResponse`](app/src/main/java/com/elysium/softwork/feedback/domain/model/SurveyResponse.kt):
+    `survey_response_id`, `surveyId`/`survey_id`, `employeeProfileId`/`employee_profile_id`,
+    `submittedAt`/`submitted_at`, `commentary`, `cause`.
+- **Network (`feedback/data/network/SurveyWebService`)** — relative paths only:
+  `GET api/v1/surveys`, `GET api/v1/surveys/{id}`, `GET api/v1/question-surveys`,
+  `GET api/v1/question-surveys/{id}`, `POST api/v1/question-surveys`,
+  `POST api/v1/survey-responses`, `GET api/v1/survey-responses`,
+  `GET api/v1/survey-responses/survey/{surveyId}`.
+- **Store (`feedback/data/store/SurveyStoreImpl`)** — mock + string-resource catalogue
+  deleted; now `SurveyStoreImpl(webService, gson)`. `getPendingSurveys()` stays a `Flow`
+  (single-shot, off `GET /surveys`); `getSurveyQuestions(surveyId)` fetches `GET /question-surveys`
+  and filters by `survey_id` client-side (no server-side filter exists); `getSurveyResponses(surveyId)`
+  hits the filtered `survey/{surveyId}` route; `submitSurveyResponse(...)` POSTs. A `400`
+  parses into `BadRequestException` via the shared `unwrap`/`throwTyped` pattern.
+- **Application (`SubmitSurveyResponseUseCase`)** — resolves `employee_profile_id` dynamically
+  from `SharedPrefsManager.KEY_EMPLOYEE_PROFILE_ID` (cached during the Phase 9 post-login
+  sync), trims the text fields, defaults `submittedAt` to `LocalDate.now()`, and binds the
+  camelCase request keys.
+- **Presentation (`PendingSurveysViewModel`)** — gains `submitResponse(...)`, `isSubmitting`,
+  and an `errorMessage: StateFlow<String?>`; a `400` is caught, its `field_errors` extracted
+  via `primaryFieldError()`, and routed into `errorMessage`. `PendingSurveysScreen` reads the
+  nullable bean (`title.orEmpty()`, `key = survey_id`), forwards `survey_id: Long?` to
+  `onStartSurvey`, and renders `errorMessage` as a `Danger` banner.
+- **Wiring**: `ServiceLocator` now owns `surveyWebService` and builds
+  `SurveyStoreImpl(surveyWebService, gson)`.
+
+#### Phase 10 caveats
+
+- **No answer-flow screen yet.** `onStartSurvey` is still an unwired no-op; `getSurveyQuestions`
+  / `getSurveyResponses` / `submitResponse` are implemented and ready for a survey-detail
+  screen that collects answers and calls `PendingSurveysViewModel.submitResponse(...)`.
+- The old `survey_*` string resources (climate/productivity seed copy) are now dead and can
+  be pruned in a follow-up cleanup.
+
+### ✅ Phase 11 — Notifications backend integration against the live Spring Boot API
+
+The `notifications` context now talks to the real FlowWork backend. All notification mocks
+are deleted. The backend splits a notification across two resources, so the feed is a
+**join**: category/ownership on `Notification`, headline/body on `NotificationDetail`.
+
+- **Domain (`notifications/domain/model/`)** — two annotation-free wire beans + one render
+  aggregate (no `@SerializedName`):
+  - [`Notification`](app/src/main/java/com/elysium/softwork/notifications/domain/model/Notification.kt):
+    `notification_id`, `seen`, `notification_type`, `user_account_id`. (Replaces the old
+    `id`/`type`/`title`/`description`/`isRead`.)
+  - [`NotificationDetail`](app/src/main/java/com/elysium/softwork/notifications/domain/model/NotificationDetail.kt):
+    `notification_detail_id`, `title`, `content`, `notificationId`/`notification_id`.
+  - [`NotificationFeedItem`](app/src/main/java/com/elysium/softwork/notifications/domain/model/NotificationFeedItem.kt):
+    render aggregate (`id`, resolved `NotificationType`, `title`, `content`, `seen`) — never
+    travels the wire, assembled by the use case.
+  - [`NotificationType.fromKey`](app/src/main/java/com/elysium/softwork/shared/utils/values/NotificationType.kt)
+    is now **case-insensitive** so any wire casing of the category resolves precisely.
+- **Network (`notifications/data/network/NotificationWebService`)** — relative paths only:
+  `GET/POST api/v1/notifications`, `GET api/v1/notifications/{id}`,
+  `GET/POST api/v1/notification-details`, `GET api/v1/notification-details/{id}`.
+- **Store (`notifications/data/store/NotificationStoreImpl`)** — mock + string-resource
+  catalogue deleted; now `NotificationStoreImpl(webService, gson)` exposing suspend
+  `getNotifications()` / `getNotificationDetails()` returning `Result`. A `400` parses into
+  `BadRequestException` via the shared `unwrapList`/`throwTyped` pattern.
+- **Application (`GetNotificationsUseCase`)** — now `(store, accountIdProvider: () -> Long?)`:
+  reads the signed-in `user_account_id` **per call** (the factory wires the provider to
+  `SharedPrefsManager.KEY_USER_ACCOUNT_ID`), filters the records to that account, joins each
+  with its detail by `notification_id`, and resolves the category (unknown ⇒ `MESSAGE`). The
+  provider seam keeps the use case unit-testable without a Robolectric `Context`.
+- **Presentation (`NotificationsViewModel`)** — loads on `init`, exposes
+  `notifications: StateFlow<List<NotificationFeedItem>>` + `errorMessage: StateFlow<String?>`;
+  a `400` is caught, its `field_errors` extracted via `primaryFieldError()`, and routed into
+  `errorMessage`. `NotificationsScreen` collects both via `collectAsStateWithLifecycle()`,
+  keeps the per-category card theming (`SURVEY`/`PAYMENT`/`FORUM`/`MESSAGE`) driven by the
+  network category, keys by `Long` id, forwards `onNotificationClick(Long)`, and renders
+  `errorMessage` as a `Danger` banner.
+- **Wiring**: `ServiceLocator` now owns `notificationWebService` and builds
+  `NotificationStoreImpl(notificationWebService, gson)`.
+- **Tests**: `FakeNotificationStore` + `NotificationsViewModelTest` rewritten for the join,
+  category fallback, account-id filtering, and the `400 → errorMessage` path.
+
+#### Phase 11 caveats
+
+- **Client-side join + filter.** `GET /notifications` and `GET /notification-details` are both
+  unfiltered lists; the worker's records and their details are matched/filtered in the use
+  case (no server-side `by-account` or `by-notification` route exists yet).
+- **No deep-link routing.** `onNotificationClick` is still an unwired no-op.
+- The old `notif_*` string resources are now dead and prunable.
+
+### ✅ Phase 12 — Forum backend integration against the live Spring Boot API
+
+The `worker.forum` context transitioned off the flat `Post` model onto the backend's
+hierarchical `Forum → Category → Thread → Message` structure (+ `Asset`, `Report`). All forum
+mocks (`SeedPosts`, `SampleReports`, the report `delay`) are deleted.
+
+- **Domain (`worker/forum/domain/model/`)** — six annotation-free beans, request/response key
+  asymmetries handled by coexisting nullable fields (no `@SerializedName`):
+  - [`Forum`](app/src/main/java/com/elysium/softwork/worker/forum/domain/model/Forum.kt),
+    [`Category`](app/src/main/java/com/elysium/softwork/worker/forum/domain/model/Category.kt),
+    [`Asset`](app/src/main/java/com/elysium/softwork/worker/forum/domain/model/Asset.kt),
+    [`Report`](app/src/main/java/com/elysium/softwork/worker/forum/domain/model/Report.kt) —
+    pure wire beans.
+  - [`Thread`](app/src/main/java/com/elysium/softwork/worker/forum/domain/model/Thread.kt) and
+    [`Message`](app/src/main/java/com/elysium/softwork/worker/forum/domain/model/Message.kt)
+    double as Room `@Entity`s (`threads` / `messages`) per the documented offline-first cache
+    exception (mirrors the former `Post`). To satisfy Room's non-null-PK rule without a mapper,
+    the primary keys (`thread_id` / `message_id`) are **non-null `Long = 0L`**; Gson overwrites
+    the default with the real id on parse. All other columns stay nullable to match the wire.
+  - The former `Post` and `ForumReport` models are deleted.
+- **Room (`worker/forum/data/local/`)**: `PostDao` → `ThreadDao` + `MessageDao`;
+  `ForumDatabase` bumped to **v2** (`entities = [Thread, Message]`, destructive migration —
+  the cache regenerates from the backend).
+- **Network (`worker/forum/data/network/ForumWebService`)** — replaces `PostWebService` +
+  `ForumReportWebService`. Relative paths only: `GET api/v1/forums`, `GET api/v1/categories`,
+  `GET/POST api/v1/threads`, `GET api/v1/threads/{id}`, `GET/POST api/v1/messages`,
+  `GET api/v1/messages/{id}`, `POST api/v1/assets`, `GET/POST api/v1/reports`.
+- **Stores (`worker/forum/data/store/`)**: `PostStore`/`PostStoreImpl` → `ForumStore`/
+  `ForumStoreImpl` (offline-first: Room `Flow`s + network refresh/upsert; `createThread`,
+  `postMessage`; messages filtered client-side by `thread_id`). `ForumReportStoreImpl` is now
+  Retrofit-backed over `ForumWebService` (`Report`). Both parse a `400` into
+  `BadRequestException` via the shared `unwrap`/`throwTyped` pattern.
+- **Use cases (`worker/forum/application/usecase/`)**: `Observe/Refresh/Get` renamed to
+  Threads; new `ObserveThreadMessages`/`RefreshThreadMessages`/`CreateThread`/`PostMessage`.
+  Writes pull the worker identity from `SharedPrefsManager` where the wire model carries it —
+  `PostMessageUseCase` and `SubmitForumReportUseCase` bind `user_account_id` (camelCase
+  request keys). (The backend `thread` create contract has no worker slot, so `CreateThread`
+  forwards only title/category/area.)
+- **ViewModels (`worker/forum/presentation/viewmodel/`)**: `ForumViewModel` (thread feed +
+  `errorMessage`; the unmappable client-side category filter is removed), `ThreadViewModel`
+  (thread header + live message stream + `sendMessage`), `NewPostViewModel` (create thread,
+  then seed first message). All three catch a `400` → `BadRequestException` →
+  `primaryFieldError()`. Report VMs realigned to `Report`. Every forum screen collects via
+  `collectAsStateWithLifecycle()`.
+- **Wiring**: `ServiceLocator` exposes `forumStore = ForumStoreImpl(threadDao, messageDao,
+  forumWebService, gson)` and `forumReportStore = ForumReportStoreImpl(forumWebService, gson)`.
+- **Tests**: `FakePostStore` → `FakeForumStore`; `ForumViewModelTest` rewritten for the thread
+  feed.
+
+#### Phase 12 caveats
+
+- **Client-side message filter.** `GET /messages` is unfiltered; the per-thread list is
+  filtered by `thread_id` in the store (no server-side `by-thread` route).
+- **Thread creation is partial.** The backend `thread` create requires `areaCompanyId` /
+  `categoryId` the composer does not collect, so creation surfaces the backend's `field_errors`
+  inline until a fuller composer lands. Message posting and reporting (which only need
+  `user_account_id`) work end-to-end.
+- **UI simplified to the wire.** Thread cards show title + reply count + last-activity date;
+  message bubbles show `User #<id>` + content. The former author/anonymity/category-chip and
+  the report status pills are gone (the backend provides no equivalent). `ForumCategory` /
+  `ReportStatus` / the `CategoryChips` composable are now unused (prunable).
+
+### ✅ Phase 13 — Payment / Membership backend integration against the live Spring Boot API
+
+The `payment.membership` context now talks to the real payment-service API. The mock
+`PlanCatalogue`, the `MOCK_PAYMENT_DELAY_MS`, and the fake in-memory plan list are deleted.
+The local membership **gate** (`hasMembership` / `currentPlanKey`, backed by `SharedPrefsManager`)
+and the **client-side saved cards** (`PaymentMethod`) are retained — the backend models
+neither a gate nor a stored instrument (it models payment as a transaction).
+
+- **Domain (`payment/membership/domain/model/`)** — five annotation-free beans (no
+  `@SerializedName`), request/response key asymmetries via coexisting nullable fields:
+  - [`Membership`](app/src/main/java/com/elysium/softwork/payment/membership/domain/model/Membership.kt),
+    [`Order`](app/src/main/java/com/elysium/softwork/payment/membership/domain/model/Order.kt),
+    [`Payment`](app/src/main/java/com/elysium/softwork/payment/membership/domain/model/Payment.kt),
+    [`Benefit`](app/src/main/java/com/elysium/softwork/payment/membership/domain/model/Benefit.kt) — new.
+  - [`MembershipPlan`](app/src/main/java/com/elysium/softwork/payment/membership/domain/model/MembershipPlan.kt)
+    refactored to `plan_id`, `planName`/`plan_name`, integer `price` (replaces `monthlyPrice`),
+    `membershipId`/`membership_id`, `benefit_response_list`. (`key`/`name`/`features`/
+    `isRecommended` removed.) `PaymentMethod` kept as the client-side card.
+- **Network (`payment/membership/data/network/MembershipWebService`)** — relative paths:
+  `POST/GET api/v1/memberships`, `GET api/v1/memberships/{id}`, `POST/GET api/v1/orders`,
+  `GET api/v1/orders/userAccount/{userAccountId}`, `POST api/v1/payments`,
+  `GET api/v1/payments/{id}`, `GET api/v1/membership-plans`,
+  `POST api/v1/membership-plans/{id}/benefits`.
+- **Store (`MembershipStoreImpl`)** — `PlanCatalogue`/`delay`/`availablePlans()`/`findPlan()`
+  removed; now `MembershipStoreImpl(prefs, webService, gson)` with suspend `getPlans()` /
+  `createOrder()` / `createPayment()` (`400` → `BadRequestException`). Gate flags + card
+  mutators unchanged.
+- **Use cases (`PayMembershipUseCase`)** — rewritten as the real checkout: creates the order
+  (binding `user_account_id` resourced from `SharedPrefsManager` via a provider, the plan
+  `price`, and `membership_id`), registers the payment (generated `transactionId`, today's
+  date), then **re-authenticates** via `AuthStore.reauthenticate()` (the Phase 9 hook —
+  no refresh endpoint exists). `GetMembershipPlansUseCase` is now suspend/`Result`.
+- **Presentation (`MembershipViewModel`)** — `availablePlans` is now an async
+  `StateFlow<List<MembershipPlan>>` loaded on init; `payMembership(plan)` drives the checkout
+  and a `400`/business-rule failure lands on `errorMessage`. `MembershipSelectionScreen` and
+  `PaymentMethodsScreen` collect the catalogue via `collectAsStateWithLifecycle()`, format the
+  integer price, render benefits as features, key by `plan_id`, and surface `errorMessage`.
+  The membership gate flips on the success-screen CTA (so the confirmation renders before the
+  root hot-swaps into the main shell).
+- **Wiring**: `ServiceLocator` exposes `membershipWebService` and builds
+  `MembershipStoreImpl(sharedPrefsManager, membershipWebService, gson)`. The `PayMembershipUseCase`
+  factory pulls `authStore` + the prefs-backed account-id provider.
+- **Tests**: `FakeMembershipStore` realigned to the new contract (`getPlans`/`createOrder`/
+  `createPayment`, new `MembershipPlan` shape); `MembershipViewModelTest` updated for the
+  plan-driven `payMembership` and the async catalogue.
+
+#### Phase 13 caveats
+
+- **Re-auth wired here.** The Phase 9 follow-up ("wire `reauthenticate()` into the payment
+  flow") is now done inside `PayMembershipUseCase`. Re-auth is best-effort: a refresh hiccup
+  does not fail an already-successful payment.
+- **Saved cards stay client-side.** The backend has no payment-method resource, so the card
+  composer / saved list remain in memory (lost on cold start); the actual charge is the
+  `Payment` transaction. A generated `transactionId` stands in for a real processor token.
+- **One new string** `payment_price_format` (`S/. %1$d`) formats the integer price in both
+  locales.
+
 ### 🔜 Next — Phase (IMPLEMENTATION WITH REAL BACKEND API)
 
 - Comment domain + store + WebService backing `ThreadScreen`.
 - Image / attachment picker for the new-post composer.
 - Real user/profile data sourced from a `ProfileStore` (replace placeholder strings).
 - Forgot-password flow.
-- Auth header interceptor on `ApiClient` once the backend session contract is finalized.
+- Wire `AuthStore.reauthenticate()` into `PaymentSuccessScreen`; route `ACTIVE`-membership
+  logins through `MembershipStore` once the backend reports `membershipStatus`.
 
 ---
 

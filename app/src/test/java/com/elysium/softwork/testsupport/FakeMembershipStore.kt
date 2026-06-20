@@ -1,7 +1,10 @@
 package com.elysium.softwork.testsupport
 
 import com.elysium.softwork.payment.membership.data.store.MembershipStore
+import com.elysium.softwork.payment.membership.domain.model.Benefit
 import com.elysium.softwork.payment.membership.domain.model.MembershipPlan
+import com.elysium.softwork.payment.membership.domain.model.Order
+import com.elysium.softwork.payment.membership.domain.model.Payment
 import com.elysium.softwork.payment.membership.domain.model.PaymentMethod
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -10,19 +13,13 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * In-memory test double for [MembershipStore].
  *
- * All persisted state is held in plain [MutableStateFlow]s so a test can either drive
- * the public mutators ([activateMembership], [cancelSubscription], [addPaymentMethod])
- * exactly like production callers do, or pre-seed state by reaching for the `_*`
- * properties through [seedMembership] / [seedPaymentMethods]. The seeding helpers exist
- * because tests for the methods screen and settings flow need a non-empty starting
- * state without going through the full payment graph.
- *
- * @param availablePlans plan catalogue served to callers. Defaults to a two-tier mock
- *   covering the recommended/non-recommended branches.
+ * The membership gate flags and saved-cards list are held in [MutableStateFlow]s so a test
+ * can drive the public mutators ([activateMembership], [cancelSubscription], [addPaymentMethod])
+ * like production callers, or pre-seed state through [seedMembership] / [seedPaymentMethods].
+ * The backend reads/writes ([getPlans], [createOrder], [createPayment]) return the programmable
+ * `next*` results so both happy- and failure-path tests are deterministic.
  */
-open class FakeMembershipStore(
-    private val availablePlans: List<MembershipPlan> = DEFAULT_PLANS,
-) : MembershipStore {
+open class FakeMembershipStore : MembershipStore {
 
     private val _hasMembership: MutableStateFlow<Boolean> = MutableStateFlow(false)
     override val hasMembership: StateFlow<Boolean> = _hasMembership.asStateFlow()
@@ -32,6 +29,15 @@ open class FakeMembershipStore(
 
     private val _paymentMethods: MutableStateFlow<List<PaymentMethod>> = MutableStateFlow(emptyList())
     override val paymentMethods: StateFlow<List<PaymentMethod>> = _paymentMethods.asStateFlow()
+
+    /** Value returned by the next [getPlans] call. */
+    var nextPlansResult: Result<List<MembershipPlan>> = Result.success(DEFAULT_PLANS)
+
+    /** Value returned by the next [createOrder] call. */
+    var nextOrderResult: Result<Order> = Result.success(Order(order_id = 1L))
+
+    /** Value returned by the next [createPayment] call. */
+    var nextPaymentResult: Result<Payment> = Result.success(Payment(payment_id = 1L))
 
     /** Most recent argument passed to [activateMembership], or `null` if never invoked. */
     var lastActivatedPlanKey: String? = null
@@ -45,10 +51,18 @@ open class FakeMembershipStore(
     var lastAddedPaymentMethod: PaymentMethod? = null
         private set
 
-    override fun availablePlans(): List<MembershipPlan> = availablePlans
+    /** Most recent [Order] passed to [createOrder], or `null` if never invoked. */
+    var lastCreatedOrder: Order? = null
+        private set
 
-    override fun findPlan(planKey: String): MembershipPlan? =
-        availablePlans.firstOrNull { it.key == planKey }
+    override suspend fun getPlans(): Result<List<MembershipPlan>> = nextPlansResult
+
+    override suspend fun createOrder(order: Order): Result<Order> {
+        lastCreatedOrder = order
+        return nextOrderResult
+    }
+
+    override suspend fun createPayment(payment: Payment): Result<Payment> = nextPaymentResult
 
     override suspend fun addPaymentMethod(method: PaymentMethod) {
         lastAddedPaymentMethod = method
@@ -79,21 +93,24 @@ open class FakeMembershipStore(
     }
 
     companion object {
-        /** Default catalogue covering both the recommended and non-recommended branches. */
+        /** Default catalogue using the live `MembershipPlan` wire shape. */
         val DEFAULT_PLANS: List<MembershipPlan> = listOf(
             MembershipPlan(
-                key = "basic",
-                name = "Basic",
-                monthlyPrice = "S/. 59",
-                features = listOf("Basic check-in", "Surveys"),
-                isRecommended = false,
+                plan_id = 1L,
+                plan_name = "Basic",
+                price = 59,
+                membership_id = 1L,
+                benefit_response_list = listOf(Benefit(benefit_id = 1L, title = "Surveys")),
             ),
             MembershipPlan(
-                key = "pro",
-                name = "Plan Pro",
-                monthlyPrice = "S/. 99",
-                features = listOf("Basic check-in", "Surveys", "Workplace forum"),
-                isRecommended = true,
+                plan_id = 2L,
+                plan_name = "Plan Pro",
+                price = 99,
+                membership_id = 2L,
+                benefit_response_list = listOf(
+                    Benefit(benefit_id = 2L, title = "Workplace forum"),
+                    Benefit(benefit_id = 3L, title = "Encrypted reports"),
+                ),
             ),
         )
     }

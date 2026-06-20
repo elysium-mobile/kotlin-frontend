@@ -19,13 +19,47 @@ import retrofit2.converter.gson.GsonConverterFactory
  * - `BuildConfig.API_KEY_GEMINI` / `API_KEY_EXTERNAL_SERVICE` — consumed by
  *   [ApiKeyInterceptor] to attach third-party credentials on a per-host basis.
  *
+ * The session JWT is attached by [AuthInterceptor], which resolves the token through
+ * [tokenProvider] **on every single request** — never a value captured in a field at build
+ * time. `ServiceLocator` wires the provider to read `SharedPrefsManager.KEY_AUTH_TOKEN` live,
+ * so each out-of-bounds call (the sequential `employee-profile` lookup, then the membership
+ * endpoints, …) re-reads the current session state from disk. A token saved a moment earlier
+ * by `sign-in` / `sign-up` is therefore visible to the very next call, and a logout stops
+ * authorizing immediately — with no stale per-client cache to leak.
+ *
+ * There is intentionally **no** cached `authToken` field: caching the token reference is what
+ * lets a later async call (e.g. `membership-plans`) ship without the header while an earlier
+ * one (`employee-profile`) carried it. The single shared [okHttpClient] is reused by every
+ * WebService, so this one live-reading interceptor governs the whole app.
+ *
+ * This object keeps its no-`Context` `object` shape; the provider closure is the only state.
+ *
  * Debug builds get an [HttpLoggingInterceptor] at `BODY` level for inspecting requests in
  * Logcat; release builds omit it entirely (the dependency is `debugImplementation` only).
  */
 object ApiClient {
 
+    /**
+     * Live JWT supplier consulted by [AuthInterceptor] on **every** authenticated request.
+     * Wired by `ServiceLocator` to read `SharedPrefsManager.KEY_AUTH_TOKEN` so the value is
+     * never stale. Defaults to a no-session provider so a build that forgets to wire it sends
+     * no `Authorization` header rather than crashing. `@Volatile` so the install performed on
+     * the main thread during `Application.onCreate` is visible to OkHttp's dispatcher threads.
+     */
+    @Volatile
+    private var tokenProvider: () -> String? = { null }
+
+    /**
+     * Registers the [provider] used to resolve the current session token for outgoing
+     * requests. Call it once from `ServiceLocator` before any store triggers a network call.
+     */
+    fun installTokenProvider(provider: () -> String?) {
+        tokenProvider = provider
+    }
+
     private val okHttpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
+            .addInterceptor(AuthInterceptor { tokenProvider() })
             .addInterceptor(
                 ApiKeyInterceptor(
                     geminiApiKey = BuildConfig.API_KEY_GEMINI,

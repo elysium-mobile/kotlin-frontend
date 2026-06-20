@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -23,13 +21,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elysium.softwork.R
@@ -40,21 +36,15 @@ import com.elysium.softwork.shared.presentation.theme.AccentMint
 import com.elysium.softwork.shared.presentation.theme.Danger
 import com.elysium.softwork.shared.presentation.theme.PrimaryNavy
 import com.elysium.softwork.shared.presentation.theme.PrimarySky
-import com.elysium.softwork.shared.presentation.theme.Success
-import com.elysium.softwork.shared.presentation.theme.Warning
+import com.elysium.softwork.worker.forum.domain.model.Report
 import com.elysium.softwork.worker.forum.presentation.viewmodel.ReportsStatusViewModel
-import com.elysium.softwork.worker.forum.domain.model.ForumReport
-import com.elysium.softwork.shared.utils.values.ReportStatus
-import java.text.DateFormat
-import java.util.Date
 
 /**
- * Reports-status screen. Lists every report the authenticated user has submitted with its
- * current [ReportStatus] so they can track follow-up without leaving the app.
+ * Reports-status screen. Lists the reports the worker has submitted (`GET /api/v1/reports`).
  *
- * Filing a new report is intentionally NOT exposed here — reports are tied to a specific
- * forum post, so the entry point lives on the thread-detail screen. This screen is purely
- * read-only.
+ * Adapted to the live backend `Report`: a report carries a reason, a description, and a date —
+ * there is no server-side status field, so the former status pills are gone. Filing a new
+ * report stays on the thread-detail screen; this screen is read-only.
  *
  * @param onBack pop handler for the header back arrow.
  */
@@ -78,11 +68,7 @@ fun ReportsStatusScreen(
             ReportsStatusViewModel.UiState.Loading -> LoadingBlock()
             is ReportsStatusViewModel.UiState.Error -> ErrorBlock(message = current.message)
             is ReportsStatusViewModel.UiState.Ready -> {
-                if (current.reports.isEmpty()) {
-                    EmptyState()
-                } else {
-                    ReportList(reports = current.reports)
-                }
+                if (current.reports.isEmpty()) EmptyState() else ReportList(reports = current.reports)
             }
         }
     }
@@ -162,7 +148,7 @@ private fun EmptyState() {
 }
 
 @Composable
-private fun ReportList(reports: List<ForumReport>) {
+private fun ReportList(reports: List<Report>) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -170,35 +156,21 @@ private fun ReportList(reports: List<ForumReport>) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
     ) {
-        items(items = reports, key = { it.id ?: it.hashCode().toString() }) { report ->
+        items(items = reports, key = { it.report_id ?: it.hashCode().toLong() }) { report ->
             ReportCard(report = report)
         }
     }
 }
 
 @Composable
-private fun ReportCard(report: ForumReport) {
-    val status: ReportStatus = ReportStatus.fromKey(report.status)
+private fun ReportCard(report: Report) {
     SoftWorkCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = report.type.orEmpty(),
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = PrimaryNavy,
-                    modifier = Modifier.weight(1f),
-                )
-                StatusPill(status = status)
-            }
-
-            if (!report.area.isNullOrBlank()) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = report.area,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = AccentDark.copy(alpha = 0.7f),
-                )
-            }
+            Text(
+                text = report.reason.orEmpty(),
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = PrimaryNavy,
+            )
 
             if (!report.description.isNullOrBlank()) {
                 Spacer(Modifier.height(8.dp))
@@ -210,62 +182,14 @@ private fun ReportCard(report: ForumReport) {
                 )
             }
 
-            Spacer(Modifier.height(12.dp))
-            FooterRow(report = report)
+            report.report_date?.let { date ->
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = stringResource(R.string.reports_status_filed_on, date),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AccentDark.copy(alpha = 0.6f),
+                )
+            }
         }
     }
-}
-
-@Composable
-private fun FooterRow(report: ForumReport) {
-    val locale = LocalConfiguration.current.locales[0]
-    val submittedLabel: String? = report.createdAt?.let { millis ->
-        val formatted = DateFormat.getDateInstance(DateFormat.MEDIUM, locale).format(Date(millis))
-        stringResource(R.string.reports_status_filed_on, formatted)
-    }
-
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        if (report.isAnonymous) {
-            AnonymousChip()
-            Spacer(Modifier.size(8.dp))
-        }
-        if (submittedLabel != null) {
-            Text(
-                text = submittedLabel,
-                style = MaterialTheme.typography.labelSmall,
-                color = AccentDark.copy(alpha = 0.6f),
-            )
-        }
-    }
-}
-
-@Composable
-private fun AnonymousChip() {
-    Text(
-        text = stringResource(R.string.reports_status_anonymous_chip),
-        color = PrimaryNavy,
-        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-        modifier = Modifier
-            .background(color = AccentMint, shape = RoundedCornerShape(999.dp))
-            .padding(horizontal = 10.dp, vertical = 4.dp),
-    )
-}
-
-@Composable
-private fun StatusPill(status: ReportStatus) {
-    val (labelRes, color) = when (status) {
-        ReportStatus.PENDING -> R.string.reports_status_pending to Warning
-        ReportStatus.UNDER_REVIEW -> R.string.reports_status_under_review to PrimarySky
-        ReportStatus.RESOLVED -> R.string.reports_status_resolved to Success
-        ReportStatus.DISMISSED -> R.string.reports_status_dismissed to Danger
-    }
-    Text(
-        text = stringResource(labelRes),
-        color = color,
-        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-        fontSize = 11.sp,
-        modifier = Modifier
-            .background(color = color.copy(alpha = 0.12f), shape = RoundedCornerShape(999.dp))
-            .padding(horizontal = 10.dp, vertical = 5.dp),
-    )
 }

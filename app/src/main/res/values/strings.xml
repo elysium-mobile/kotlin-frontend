@@ -101,6 +101,7 @@
     <string name="forum_category_conflicts">#Conflicts</string>
     <string name="forum_anonymous_author">Anonymous</string>
     <string name="forum_replies_count">💬 %1$d</string>
+    <string name="forum_message_author">User #%1$d</string>
     <string name="forum_new_post">New post</string>
     <string name="forum_new_post_publish">Publish</string>
     <string name="forum_post_title_hint">Title</string>
@@ -190,6 +191,7 @@
     <string name="payment_memberships_title">Memberships</string>
     <string name="payment_select_plan">Select plan</string>
     <string name="payment_price_suffix">/ month</string>
+    <string name="payment_price_format">S/. %1$d</string>
     <string name="payment_methods_title">Payment methods</string>
     <string name="payment_next_charge">Next charge</string>
     <string name="payment_card_label">%1$s •••• %2$s</string>
