@@ -19,7 +19,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,14 +29,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elysium.softwork.R
 import com.elysium.softwork.notifications.presentation.viewmodel.NotificationsViewModel
-import com.elysium.softwork.notifications.domain.model.Notification
+import com.elysium.softwork.notifications.domain.model.NotificationFeedItem
 import com.elysium.softwork.shared.presentation.components.SoftWorkCard
 import com.elysium.softwork.shared.presentation.theme.AccentDark
 import com.elysium.softwork.shared.presentation.theme.AccentMint
 import com.elysium.softwork.shared.presentation.theme.AccentWhite
+import com.elysium.softwork.shared.presentation.theme.Danger
 import com.elysium.softwork.shared.presentation.theme.PrimaryNavy
 import com.elysium.softwork.shared.presentation.theme.PrimarySky
 import com.elysium.softwork.shared.presentation.theme.PrimaryTeal
@@ -52,15 +53,16 @@ import com.elysium.softwork.shared.utils.values.NotificationType
  * to make the list more vibrant while still respecting the brand palette tokens declared
  * in `shared/presentation/theme/Color.kt`.
  *
- * @param onNotificationClick invoked when the user taps a card; the notification id is
- *   forwarded so the host can route to the per-type deep-link target.
+ * @param onNotificationClick invoked when the user taps a card; the backend `notification_id`
+ *   is forwarded so the host can route to the per-type deep-link target.
  */
 @Composable
 fun NotificationsScreen(
-    onNotificationClick: (String) -> Unit,
+    onNotificationClick: (Long) -> Unit,
     viewModel: NotificationsViewModel = viewModel(factory = NotificationsViewModel.Factory),
 ) {
-    val notifications: List<Notification> by viewModel.notifications.collectAsState()
+    val notifications: List<NotificationFeedItem> by viewModel.notifications.collectAsStateWithLifecycle()
+    val errorMessage: String? by viewModel.errorMessage.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
@@ -68,6 +70,17 @@ fun NotificationsScreen(
             .background(AccentWhite),
     ) {
         NotificationsHeader()
+
+        errorMessage?.let { message ->
+            Text(
+                text = message,
+                color = Danger,
+                fontSize = 14.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+            )
+        }
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -104,7 +117,7 @@ private fun NotificationsHeader() {
 
 @Composable
 private fun NotificationCard(
-    notification: Notification,
+    notification: NotificationFeedItem,
     onClick: () -> Unit,
 ) {
     val theme: NotificationTheme = NotificationTheme.forType(notification.type)
@@ -132,7 +145,7 @@ private fun NotificationCard(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = notification.description,
+                    text = notification.content,
                     color = AccentDark,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Normal,

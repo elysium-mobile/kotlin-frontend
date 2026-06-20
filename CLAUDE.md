@@ -672,6 +672,13 @@ hook.
 
 ### ✅ Phase 6 (in progress) — Notifications bounded context
 
+> **⚠️ Superseded by Phase 11 (Notifications backend integration).** The notification stack
+> now talks to the live Spring Boot API — `NotificationStoreImpl` is Retrofit-backed (no more
+> string-resource mock), the `Notification` bean carries the real wire keys (split from the
+> human-readable `NotificationDetail`), and the feed is a `NotificationFeedItem` aggregate
+> assembled by the use case. See the Phase 11 section below. The historical Phase 6 notes are
+> retained for context.
+
 - **Domain**: [`Notification`](app/src/main/java/com/elysium/softwork/notifications/domain/model/Notification.kt)
   data class (`id` / `type` / `title` / `description` / `isRead`) annotated with
   `@SerializedName` per the bean shortcut. The category discriminator lives in
@@ -1036,6 +1043,56 @@ deleted; the AI-chat sub-context (`FeedbackStore`/`AiChatViewModel`) is untouche
   screen that collects answers and calls `PendingSurveysViewModel.submitResponse(...)`.
 - The old `survey_*` string resources (climate/productivity seed copy) are now dead and can
   be pruned in a follow-up cleanup.
+
+### ✅ Phase 11 — Notifications backend integration against the live Spring Boot API
+
+The `notifications` context now talks to the real FlowWork backend. All notification mocks
+are deleted. The backend splits a notification across two resources, so the feed is a
+**join**: category/ownership on `Notification`, headline/body on `NotificationDetail`.
+
+- **Domain (`notifications/domain/model/`)** — two annotation-free wire beans + one render
+  aggregate (no `@SerializedName`):
+  - [`Notification`](app/src/main/java/com/elysium/softwork/notifications/domain/model/Notification.kt):
+    `notification_id`, `seen`, `notification_type`, `user_account_id`. (Replaces the old
+    `id`/`type`/`title`/`description`/`isRead`.)
+  - [`NotificationDetail`](app/src/main/java/com/elysium/softwork/notifications/domain/model/NotificationDetail.kt):
+    `notification_detail_id`, `title`, `content`, `notificationId`/`notification_id`.
+  - [`NotificationFeedItem`](app/src/main/java/com/elysium/softwork/notifications/domain/model/NotificationFeedItem.kt):
+    render aggregate (`id`, resolved `NotificationType`, `title`, `content`, `seen`) — never
+    travels the wire, assembled by the use case.
+  - [`NotificationType.fromKey`](app/src/main/java/com/elysium/softwork/shared/utils/values/NotificationType.kt)
+    is now **case-insensitive** so any wire casing of the category resolves precisely.
+- **Network (`notifications/data/network/NotificationWebService`)** — relative paths only:
+  `GET/POST api/v1/notifications`, `GET api/v1/notifications/{id}`,
+  `GET/POST api/v1/notification-details`, `GET api/v1/notification-details/{id}`.
+- **Store (`notifications/data/store/NotificationStoreImpl`)** — mock + string-resource
+  catalogue deleted; now `NotificationStoreImpl(webService, gson)` exposing suspend
+  `getNotifications()` / `getNotificationDetails()` returning `Result`. A `400` parses into
+  `BadRequestException` via the shared `unwrapList`/`throwTyped` pattern.
+- **Application (`GetNotificationsUseCase`)** — now `(store, accountIdProvider: () -> Long?)`:
+  reads the signed-in `user_account_id` **per call** (the factory wires the provider to
+  `SharedPrefsManager.KEY_USER_ACCOUNT_ID`), filters the records to that account, joins each
+  with its detail by `notification_id`, and resolves the category (unknown ⇒ `MESSAGE`). The
+  provider seam keeps the use case unit-testable without a Robolectric `Context`.
+- **Presentation (`NotificationsViewModel`)** — loads on `init`, exposes
+  `notifications: StateFlow<List<NotificationFeedItem>>` + `errorMessage: StateFlow<String?>`;
+  a `400` is caught, its `field_errors` extracted via `primaryFieldError()`, and routed into
+  `errorMessage`. `NotificationsScreen` collects both via `collectAsStateWithLifecycle()`,
+  keeps the per-category card theming (`SURVEY`/`PAYMENT`/`FORUM`/`MESSAGE`) driven by the
+  network category, keys by `Long` id, forwards `onNotificationClick(Long)`, and renders
+  `errorMessage` as a `Danger` banner.
+- **Wiring**: `ServiceLocator` now owns `notificationWebService` and builds
+  `NotificationStoreImpl(notificationWebService, gson)`.
+- **Tests**: `FakeNotificationStore` + `NotificationsViewModelTest` rewritten for the join,
+  category fallback, account-id filtering, and the `400 → errorMessage` path.
+
+#### Phase 11 caveats
+
+- **Client-side join + filter.** `GET /notifications` and `GET /notification-details` are both
+  unfiltered lists; the worker's records and their details are matched/filtered in the use
+  case (no server-side `by-account` or `by-notification` route exists yet).
+- **No deep-link routing.** `onNotificationClick` is still an unwired no-op.
+- The old `notif_*` string resources are now dead and prunable.
 
 ### 🔜 Next — Phase (IMPLEMENTATION WITH REAL BACKEND API)
 
